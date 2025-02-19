@@ -10,7 +10,6 @@ def get_unprocessed_transactions():
         SELECT transaction_id, date, name, amount, iso_currency_code, pending
         FROM transactions
         WHERE user_category_id IS NULL 
-        AND (ignored IS NULL OR ignored = 0)
         ORDER BY date DESC;
     """)
 
