@@ -1,8 +1,10 @@
 
 from flask import Flask, jsonify
+from flask_cors import CORS
 from get_transactions import get_unprocessed_transactions
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 @app.route("/unprocessed-transactions", methods=["GET"])
 def unprocessed_transactions():
