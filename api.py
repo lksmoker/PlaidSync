@@ -1,5 +1,5 @@
 
-from flask import Flask, jsonify, make_response
+from flask import Flask, jsonify, make_response, request
 from flask_cors import CORS
 from get_transactions import get_unprocessed_transactions
 
@@ -10,7 +10,13 @@ CORS(app)  # Enable CORS for all routes
 def before_request():
     """Ensure proper content type for API responses"""
     if request.path.startswith('/unprocessed-transactions'):
-        return make_response().headers['Content-Type'] = 'application/json'
+        resp = make_response()
+        resp.headers['Content-Type'] = 'application/json'
+        return resp
+
+@app.route("/", methods=["GET"])
+def home():
+    return "API is running"
 
 @app.route("/unprocessed-transactions", methods=["GET"])
 def unprocessed_transactions():
