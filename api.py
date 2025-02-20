@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Database configuration
-DATABASE = "transactions_prod.db"
+DATABASE = "transactions_dev.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
