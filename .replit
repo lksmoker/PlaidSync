@@ -20,3 +20,11 @@ externalPort = 80
 
 [workflows]
 runButton = "Run API"
+
+[[workflows.workflow]]
+name = "Run API"
+author = 39547853
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python api.py"
