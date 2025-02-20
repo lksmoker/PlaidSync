@@ -36,4 +36,4 @@ def unprocessed_transactions():
     return response
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=3000, ssl_context=None)
+    app.run(host='0.0.0.0', port=8080)
