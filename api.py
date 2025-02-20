@@ -31,4 +31,4 @@ def unprocessed_transactions():
 if __name__ == "__main__":
     print("\n🚀 Available Routes:")
     print(app.url_map)
-    app.run(host='0.0.0.0', port=443, ssl_context='adhoc')
+    app.run(host='0.0.0.0', port=5000)
