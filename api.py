@@ -35,17 +35,7 @@ print(app.url_map)
 import os
 
 if __name__ == "__main__":
-        host = "0.0.0.0"
         port = 5000
-
         print("\n🚀 Available Routes:")
         print(app.url_map)
-
-        # Try detecting Replit's public URL
-        replit_url = os.getenv("REPLIT_APP_URL")
-        if replit_url:
-            print(f"🌍 Public API URL: {replit_url}/unprocessed-transactions")
-        else:
-            print(f"🛠 No public URL detected. Try accessing: http://127.0.0.1:{port}/unprocessed-transactions")
-
-        app.run(debug=False, host=host, port=port)
+        app.run(host='0.0.0.0', port=port, debug=True)
