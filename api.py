@@ -1,39 +1,82 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
-from get_transactions import get_unprocessed_transactions
 
+from flask import Flask, jsonify, request
+from flask_cors import CORS  
+import sqlite3
+from werkzeug.serving import WSGIRequestHandler
+import ssl
+
+# Create Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
-@app.route("/", methods=["GET"])
+# Database configuration
+DATABASE = "transactions_prod.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.route('/')
 def home():
-    return """
-    API is running. Available endpoints:
-    - GET /unprocessed-transactions
-    
-    Access /unprocessed-transactions to see the transaction data.
-    """
-
-@app.route("/unprocessed-transactions", methods=["GET"])
-def unprocessed_transactions():
-    """API endpoint to get unprocessed transactions."""
-    transactions = get_unprocessed_transactions()
-
-    formatted_transactions = [
-        {
-            "transaction_id": tx[0],
-            "date": tx[1],
-            "name": tx[2],
-            "amount": tx[3],
-            "currency": tx[4],
-            "pending": bool(tx[5])
+    return jsonify({
+        "status": "online",
+        "endpoints": {
+            "GET /unprocessed-transactions": "Get all unprocessed transactions",
+            "GET /transactions": "Get all transactions",
+            "GET /accounts": "Get all accounts"
         }
-        for tx in transactions
-    ]
+    })
 
-    response = jsonify(formatted_transactions)
-    response.headers['Content-Type'] = 'application/json'
-    return response
+@app.route('/unprocessed-transactions')
+def unprocessed_transactions():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT transaction_id, date, name, amount, iso_currency_code, pending
+        FROM transactions 
+        WHERE user_category_id IS NULL 
+        ORDER BY date DESC
+    """)
+    
+    transactions = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([dict(tx) for tx in transactions])
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=3000, ssl_context='adhoc')
+@app.route('/transactions')
+def all_transactions():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM transactions ORDER BY date DESC")
+    
+    transactions = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([dict(tx) for tx in transactions])
+
+@app.route('/accounts')
+def accounts():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM accounts")
+    
+    accounts = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([dict(acc) for acc in accounts])
+
+if __name__ == '__main__':
+    # Enable HTTP/1.1 support
+    WSGIRequestHandler.protocol_version = "HTTP/1.1"
+    
+    # Run the app
+    app.run(
+        host='0.0.0.0',
+        port=8080,
+        debug=True,
+        ssl_context=None
+    )
