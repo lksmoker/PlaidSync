@@ -7,7 +7,12 @@ CORS(app)  # Enable CORS for all routes
 
 @app.route("/", methods=["GET"])
 def home():
-    return "API is running"
+    return """
+    API is running. Available endpoints:
+    - GET /unprocessed-transactions
+    
+    Access /unprocessed-transactions to see the transaction data.
+    """
 
 @app.route("/unprocessed-transactions", methods=["GET"])
 def unprocessed_transactions():
