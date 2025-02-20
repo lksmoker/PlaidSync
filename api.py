@@ -7,7 +7,7 @@ import ssl
 
 # Create Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Database configuration
 DATABASE = "transactions_dev.db"
@@ -74,9 +74,11 @@ if __name__ == '__main__':
     WSGIRequestHandler.protocol_version = "HTTP/1.1"
     
     # Run the app
+    # Configure for public access
     app.run(
         host='0.0.0.0',
         port=3000,
         debug=False,
-        threaded=True
+        threaded=True,
+        ssl_context=None
     )
