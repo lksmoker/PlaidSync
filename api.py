@@ -35,7 +35,7 @@ print(app.url_map)
 import os
 
 if __name__ == "__main__":
-        port = 5000
+        port = int(os.getenv('PORT', 5000))
         print("\n🚀 Available Routes:")
         print(app.url_map)
-        app.run(host='0.0.0.0', port=port, debug=True)
+        app.run(host='0.0.0.0', port=port)
