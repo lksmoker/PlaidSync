@@ -1,4 +1,5 @@
-entrypoint = "api.py"  # ✅ Ensure the correct entrypoint is used
+
+entrypoint = "api.py"
 
 modules = ["python-3.11"]
 
@@ -12,16 +13,12 @@ language = "python3"
 requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run = ["sh", "-c", "python api.py"]
-deploymentTarget = "cloudrun"
+run = ["python", "api.py"]
+deploymentTarget = "gce"
 
 [[ports]]
 localPort = 80
 externalPort = 80
-
-[[ports]]
-localPort = 3000
-externalPort = 3000
 
 [workflows]
 runButton = "Run API"
