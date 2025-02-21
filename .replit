@@ -1,4 +1,5 @@
-entrypoint = "main.py"
+entrypoint = "api.py"  # ✅ Ensure the correct entrypoint is used
+
 modules = ["python-3.11"]
 
 [nix]
@@ -11,24 +12,16 @@ language = "python3"
 requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run = ["sh", "-c", "python api.py"]
-deploymentTarget = "scheduled"
+run = ["sh", "-c", "python api.py"]  # ✅ Ensures API starts correctly
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 80
-externalPort = 3000
-
-[[ports]]
-localPort = 3000
-externalPort = 3001
-
-[[ports]]
-localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 3000
+externalPort = 3000
 
 [workflows]
 runButton = "Run API"
