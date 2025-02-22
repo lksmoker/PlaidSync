@@ -14,7 +14,7 @@ requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
 run = ["python", "api.py"]
-deploymentTarget = "gce"
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 80
@@ -30,3 +30,7 @@ author = 39547853
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python api.py"
+
+[auth]
+pageEnabled = false
+buttonEnabled = false
