@@ -20,6 +20,7 @@ def home():
     return jsonify({
         "status": "online",
         "endpoints": {
+            "GET /processed-transactions": "Get all categorized or ignored transactions",
             "GET /unprocessed-transactions": "Get all unprocessed transactions",
             "GET /transactions": "Get all transactions",
             "GET /accounts": "Get all accounts",
