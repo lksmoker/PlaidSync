@@ -34,7 +34,8 @@ def processed_transactions():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM transactions
+        SELECT transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored
+        FROM transactions
         WHERE user_category_id IS NOT NULL OR ignored = 1
         ORDER BY date DESC
     """)
