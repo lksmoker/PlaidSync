@@ -23,6 +23,9 @@ def home():
         "status": "online",
         "endpoints": {
             "GET /categories": "Get all categories in a nested structure",
+            "POST /categories": "Add a new category",
+            "PUT /categories/<id>": "Update a category",
+            "DELETE /categories/<id>": "Delete a category",
             "GET /processed-transactions": "Get all categorized or ignored transactions",
             "GET /unprocessed-transactions": "Get all unprocessed transactions",
             "GET /transactions": "Get all transactions",
@@ -135,6 +138,68 @@ def accounts():
 
     return jsonify([dict(acc) for acc in accounts])
 
+
+@app.route('/categories', methods=['POST'])
+def add_category():
+    data = request.json
+    if not data or 'name' not in data:
+        return jsonify({"error": "Category name is required"}), 400
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO categories (name) VALUES (?)", (data['name'],))
+        conn.commit()
+        return jsonify({"success": True, "id": cursor.lastrowid})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Category already exists"}), 409
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/categories/<int:category_id>', methods=['PUT'])
+def update_category(category_id):
+    data = request.json
+    if not data or 'name' not in data:
+        return jsonify({"error": "Category name is required"}), 400
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE categories SET name = ? WHERE id = ?", 
+                      (data['name'], category_id))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Category not found"}), 404
+        return jsonify({"success": True})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Category name already exists"}), 409
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/categories/<int:category_id>', methods=['DELETE'])
+def delete_category(category_id):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Category not found"}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 @app.route('/update-transactions', methods=['POST'])
 def update_transactions():
