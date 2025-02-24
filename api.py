@@ -22,10 +22,9 @@ def home():
     return jsonify({
         "status": "online",
         "endpoints": {
-            "GET /processed-transactions":
-            "Get all categorized or ignored transactions",
-            "GET /unprocessed-transactions":
-            "Get all unprocessed transactions",
+            "GET /categories": "Get all categories in a nested structure",
+            "GET /processed-transactions": "Get all categorized or ignored transactions",
+            "GET /unprocessed-transactions": "Get all unprocessed transactions",
             "GET /transactions": "Get all transactions",
             "GET /accounts": "Get all accounts",
             "POST /update-transactions": "Update or insert transactions"
