@@ -35,36 +35,44 @@ def home():
 
 @app.route('/categories')
 def get_categories():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    # Get all categories
-    cursor.execute(
-        "SELECT id, name, parent_id FROM categories ORDER BY parent_id, name")
-    categories = cursor.fetchall()
+        cursor.execute("""
+            SELECT id, name, parent_id 
+            FROM categories 
+            ORDER BY parent_id NULLS FIRST, name
+        """)
+        categories = cursor.fetchall()
 
-    # Process categories into a nested structure
-    category_dict = {}
-    for cat in categories:
-        cat_dict = dict(cat)
-        cat_id = cat_dict["id"]
-        parent_id = cat_dict["parent_id"]
+        # Process categories into a nested structure
+        category_dict = {}
+        for cat in categories:
+            cat_dict = dict(cat)
+            cat_id = cat_dict["id"]
+            parent_id = cat_dict["parent_id"]
 
-        if parent_id is None:
-            # Main categories go directly into the dictionary
-            category_dict[cat_id] = {
-                "name": cat_dict["name"],
-                "subcategories": []
-            }
-        else:
-            # Subcategories are added to their parent's list
-            if parent_id in category_dict:
-                category_dict[parent_id]["subcategories"].append(
-                    cat_dict["name"])
+            if parent_id is None:
+                category_dict[cat_id] = {
+                    "id": cat_id,
+                    "name": cat_dict["name"],
+                    "subcategories": []
+                }
+            elif parent_id in category_dict:
+                category_dict[parent_id]["subcategories"].append({
+                    "id": cat_id,
+                    "name": cat_dict["name"]
+                })
 
-    conn.close()
+        return jsonify(list(category_dict.values()))
 
-    return jsonify(list(category_dict.values()))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 @app.route('/processed-transactions')
 def processed_transactions():
