@@ -4,6 +4,12 @@
 <head>
     <title>Setup - Transaction Manager</title>
     <style>
+        body {
+            max-width: 100%;
+            margin: 0;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -15,21 +21,51 @@
         }
         .modal-content {
             background-color: white;
-            margin: 15% auto;
-            padding: 20px;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 5px;
+            margin: 10% auto;
+            padding: 15px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 8px;
         }
         .category-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
+            padding: 12px 8px;
             border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+        .category-item button {
+            margin: 4px;
         }
         .subcategory {
-            margin-left: 20px;
+            margin-left: 15px;
+            width: calc(100% - 15px);
+        }
+        button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #addCategoryForm {
+            margin: 15px 0;
+        }
+        nav {
+            margin: 15px 0;
+        }
+        nav a {
+            margin-right: 10px;
+            text-decoration: none;
+            color: #0066cc;
         }
     </style>
 </head>
