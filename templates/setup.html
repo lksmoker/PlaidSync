@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup - Transaction Manager</title>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 5px;
+        }
+        .category-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .subcategory {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Setup</h1>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/setup">Setup</a>
+    </nav>
+
+    <button onclick="openCategoryManager()">Manage Categories</button>
+
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <h2>Category Manager</h2>
+            <button onclick="showAddCategoryForm()">Add New Category</button>
+            <div id="addCategoryForm" style="display: none; margin: 20px 0;">
+                <input type="text" id="newCategoryName" placeholder="Category name">
+                <select id="parentCategory">
+                    <option value="">No parent (top-level)</option>
+                </select>
+                <button onclick="addCategory()">Add</button>
+            </div>
+            <div id="categoriesList"></div>
+        </div>
+    </div>
+
+    <script>
+        function openCategoryManager() {
+            document.getElementById('categoryModal').style.display = 'block';
+            loadCategories();
+        }
+
+        function loadCategories() {
+            fetch('/categories')
+                .then(response => response.json())
+                .then(categories => {
+                    const list = document.getElementById('categoriesList');
+                    const select = document.getElementById('parentCategory');
+                    list.innerHTML = '';
+                    select.innerHTML = '<option value="">No parent (top-level)</option>';
+                    
+                    categories.forEach(category => {
+                        // Add to main list
+                        const div = document.createElement('div');
+                        div.className = 'category-item';
+                        div.innerHTML = `
+                            <span>${category.name}</span>
+                            <div>
+                                <button onclick="editCategory(${category.id})">Edit</button>
+                                <button onclick="deleteCategory(${category.id})">Delete</button>
+                            </div>
+                        `;
+                        list.appendChild(div);
+
+                        // Add subcategories
+                        category.subcategories.forEach(sub => {
+                            const subDiv = document.createElement('div');
+                            subDiv.className = 'category-item subcategory';
+                            subDiv.innerHTML = `
+                                <span>${sub.name}</span>
+                                <div>
+                                    <button onclick="editCategory(${sub.id})">Edit</button>
+                                    <button onclick="deleteCategory(${sub.id})">Delete</button>
+                                </div>
+                            `;
+                            list.appendChild(subDiv);
+                        });
+
+                        // Add to parent selection dropdown
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        select.appendChild(option);
+                    });
+                });
+        }
+
+        function showAddCategoryForm() {
+            document.getElementById('addCategoryForm').style.display = 'block';
+        }
+
+        function addCategory() {
+            const name = document.getElementById('newCategoryName').value;
+            const parentId = document.getElementById('parentCategory').value;
+            
+            fetch('/categories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    name: name,
+                    parent_id: parentId || null
+                }),
+            })
+            .then(response => response.json())
+            .then(() => {
+                document.getElementById('newCategoryName').value = '';
+                loadCategories();
+            });
+        }
+
+        function deleteCategory(id) {
+            if (confirm('Are you sure you want to delete this category?')) {
+                fetch(`/categories/${id}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(() => loadCategories());
+            }
+        }
+
+        function editCategory(id) {
+            const newName = prompt('Enter new category name:');
+            if (newName) {
+                fetch(`/categories/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: newName }),
+                })
+                .then(response => response.json())
+                .then(() => loadCategories());
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('categoryModal')) {
+                document.getElementById('categoryModal').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

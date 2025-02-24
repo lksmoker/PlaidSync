@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import sqlite3
 from werkzeug.serving import WSGIRequestHandler
@@ -139,6 +139,10 @@ def accounts():
     return jsonify([dict(acc) for acc in accounts])
 
 
+@app.route('/setup')
+def setup():
+    return render_template('setup.html')
+
 @app.route('/categories', methods=['POST'])
 def add_category():
     data = request.json
@@ -149,7 +153,8 @@ def add_category():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO categories (name) VALUES (?)", (data['name'],))
+        cursor.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", 
+                      (data['name'], data.get('parent_id')))
         conn.commit()
         return jsonify({"success": True, "id": cursor.lastrowid})
     except sqlite3.IntegrityError:
