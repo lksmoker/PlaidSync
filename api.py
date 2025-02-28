@@ -33,10 +33,21 @@ def home():
             "GET /transactions": "Get all transactions",
             "GET /duplicate-transactions":
             "Get all potential duplicate transactions",
+            "GET /duplicate-pairs": 
+            "Get potential duplicate transactions as pairs",
+            "GET /duplicate-review": 
+            "Interactive page to review duplicate transactions",
+            "POST /confirm-duplicate": 
+            "Mark a transaction as confirmed duplicate or not",
             "GET /accounts": "Get all accounts",
             "POST /update-transactions": "Update or insert transactions"
         }
     })
+
+@app.route('/duplicate-review')
+def duplicate_review_page():
+    """Render the duplicate review page."""
+    return render_template('duplicate_review.html')
 
 
 @app.route('/categories')
@@ -153,6 +164,72 @@ def duplicate_transactions():
             """)
         transactions = cursor.fetchall()
         return jsonify([dict(tx) for tx in transactions])
+
+@app.route('/duplicate-pairs')
+def duplicate_pairs():
+    """Fetch duplicate transactions as pairs for review."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT t1.transaction_id, t1.date, t1.name, t1.amount, t1.iso_currency_code, 
+                   t2.transaction_id as duplicate_id, t2.name as duplicate_name,
+                   t1.confirmed_duplicate, t2.confirmed_duplicate
+            FROM transactions t1
+            JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount
+            WHERE t1.transaction_id < t2.transaction_id
+            AND t1.potential_duplicate = 1 AND t2.potential_duplicate = 1
+            ORDER BY t1.date DESC, t1.amount
+        """)
+        
+        pairs = []
+        for row in cursor.fetchall():
+            pairs.append({
+                "date": row[1],
+                "amount": row[3],
+                "transaction1": {
+                    "id": row[0],
+                    "name": row[2],
+                    "confirmed_duplicate": row[7]
+                },
+                "transaction2": {
+                    "id": row[5],
+                    "name": row[6],
+                    "confirmed_duplicate": row[8]
+                }
+            })
+        
+        return jsonify(pairs)
+
+@app.route('/confirm-duplicate', methods=['POST'])
+def confirm_duplicate():
+    """Mark a transaction as confirmed duplicate or not duplicate."""
+    data = request.json
+    if not data or 'transaction_id' not in data or 'is_duplicate' not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    transaction_id = data['transaction_id']
+    is_duplicate = data['is_duplicate']
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            # First, make sure we have the confirmed_duplicate column
+            try:
+                cursor.execute("SELECT confirmed_duplicate FROM transactions LIMIT 1")
+            except sqlite3.OperationalError:
+                cursor.execute("ALTER TABLE transactions ADD COLUMN confirmed_duplicate INTEGER DEFAULT NULL")
+                conn.commit()
+                
+            # Update the transaction
+            cursor.execute(
+                "UPDATE transactions SET confirmed_duplicate = ? WHERE transaction_id = ?",
+                (1 if is_duplicate else 0, transaction_id)
+            )
+            conn.commit()
+            
+            return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/accounts')
 def accounts():

@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Transaction Review</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .duplicate-pair {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .transaction {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 3px;
+        }
+        .transaction.confirmed {
+            background-color: #ffe6e6;
+        }
+        .transaction.not-duplicate {
+            background-color: #e6ffe6;
+        }
+        .pair-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .action-buttons button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .amount {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Duplicate Transaction Review</h1>
+    <div id="duplicate-container">
+        <div class="loading">Loading duplicate pairs...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDuplicatePairs();
+        });
+
+        async function fetchDuplicatePairs() {
+            try {
+                const response = await fetch('/duplicate-pairs');
+                const pairs = await response.json();
+                
+                const container = document.getElementById('duplicate-container');
+                container.innerHTML = '';
+                
+                if (pairs.length === 0) {
+                    container.innerHTML = '<p>No duplicate transactions found.</p>';
+                    return;
+                }
+                
+                pairs.forEach(pair => {
+                    container.appendChild(createPairElement(pair));
+                });
+            } catch (error) {
+                console.error('Error fetching duplicate pairs:', error);
+                document.getElementById('duplicate-container').innerHTML = 
+                    '<p>Error loading duplicate pairs. Please try again.</p>';
+            }
+        }
+
+        function createPairElement(pair) {
+            const pairDiv = document.createElement('div');
+            pairDiv.className = 'duplicate-pair';
+            
+            const header = document.createElement('div');
+            header.className = 'pair-header';
+            header.innerHTML = `
+                <div>Date: ${pair.date}</div>
+                <div class="amount">Amount: $${Math.abs(pair.amount).toFixed(2)}</div>
+            `;
+            pairDiv.appendChild(header);
+            
+            const tx1 = document.createElement('div');
+            tx1.className = 'transaction';
+            if (pair.transaction1.confirmed_duplicate === 1) {
+                tx1.classList.add('confirmed');
+            } else if (pair.transaction1.confirmed_duplicate === 0) {
+                tx1.classList.add('not-duplicate');
+            }
+            tx1.innerHTML = `
+                <div>${pair.transaction1.name}</div>
+                <div>ID: ${pair.transaction1.id}</div>
+            `;
+            pairDiv.appendChild(tx1);
+            
+            const tx2 = document.createElement('div');
+            tx2.className = 'transaction';
+            if (pair.transaction2.confirmed_duplicate === 1) {
+                tx2.classList.add('confirmed');
+            } else if (pair.transaction2.confirmed_duplicate === 0) {
+                tx2.classList.add('not-duplicate');
+            }
+            tx2.innerHTML = `
+                <div>${pair.transaction2.name}</div>
+                <div>ID: ${pair.transaction2.id}</div>
+            `;
+            pairDiv.appendChild(tx2);
+            
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'action-buttons';
+            
+            // Buttons for transaction 1
+            const markTx1DupBtn = document.createElement('button');
+            markTx1DupBtn.textContent = 'Mark 1 as Duplicate';
+            markTx1DupBtn.onclick = () => confirmDuplicate(pair.transaction1.id, true);
+            
+            const markTx1NotDupBtn = document.createElement('button');
+            markTx1NotDupBtn.textContent = 'Mark 1 as Not Duplicate';
+            markTx1NotDupBtn.onclick = () => confirmDuplicate(pair.transaction1.id, false);
+            
+            // Buttons for transaction 2
+            const markTx2DupBtn = document.createElement('button');
+            markTx2DupBtn.textContent = 'Mark 2 as Duplicate';
+            markTx2DupBtn.onclick = () => confirmDuplicate(pair.transaction2.id, true);
+            
+            const markTx2NotDupBtn = document.createElement('button');
+            markTx2NotDupBtn.textContent = 'Mark 2 as Not Duplicate';
+            markTx2NotDupBtn.onclick = () => confirmDuplicate(pair.transaction2.id, false);
+            
+            actionButtons.appendChild(markTx1DupBtn);
+            actionButtons.appendChild(markTx1NotDupBtn);
+            actionButtons.appendChild(markTx2DupBtn);
+            actionButtons.appendChild(markTx2NotDupBtn);
+            
+            pairDiv.appendChild(actionButtons);
+            
+            return pairDiv;
+        }
+
+        async function confirmDuplicate(transactionId, isDuplicate) {
+            try {
+                const response = await fetch('/confirm-duplicate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        transaction_id: transactionId,
+                        is_duplicate: isDuplicate
+                    }),
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Refresh the list
+                    fetchDuplicatePairs();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to update transaction'));
+                }
+            } catch (error) {
+                console.error('Error confirming duplicate:', error);
+                alert('Error confirming duplicate status');
+            }
+        }
+    </script>
+</body>
+</html>

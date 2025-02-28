@@ -48,9 +48,22 @@ def flag_duplicate_transactions():
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE transactions ADD COLUMN potential_duplicate INTEGER DEFAULT 0")
         conn.commit()
+    
+    # Check for confirmed_duplicate column
+    try:
+        cursor.execute("SELECT confirmed_duplicate FROM transactions LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN confirmed_duplicate INTEGER DEFAULT NULL")
+        conn.commit()
 
-    # Reset all flags first
-    cursor.execute("UPDATE transactions SET potential_duplicate = 0")
+    # Reset potential duplicate flags but preserve confirmed ones
+    cursor.execute("""
+        UPDATE transactions 
+        SET potential_duplicate = CASE
+            WHEN confirmed_duplicate = 1 THEN 1
+            ELSE 0
+        END
+    """)
 
     # Find duplicates
     duplicates = find_duplicate_transactions()
