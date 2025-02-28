@@ -19,16 +19,17 @@ def get_unprocessed_transactions():
     return transactions
 
 def find_duplicate_transactions():
-    """Find potential duplicate transactions based on same date and amount."""
+    """Find potential duplicate transactions based on same date, amount, and account."""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
 
-    # Query that finds transactions with the same date and amount
+    # Query that finds transactions with the same date, amount, and account
     cursor.execute("""
         SELECT t1.transaction_id, t1.date, t1.name, t1.amount, t1.iso_currency_code, 
-               t2.transaction_id as duplicate_id, t2.name as duplicate_name
+               t2.transaction_id as duplicate_id, t2.name as duplicate_name,
+               t1.account_id as account_id
         FROM transactions t1
-        JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount
+        JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount AND t1.account_id = t2.account_id
         WHERE t1.transaction_id < t2.transaction_id  -- Avoid listing the same pair twice
         ORDER BY t1.date DESC, t1.amount;
     """)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
         duplicates = find_duplicate_transactions()
         for i, dup in enumerate(duplicates[:3]):  # Show first 3 pairs only
             print(f"Pair {i+1}:")
-            print(f"  Date: {dup[1]}, Amount: ${abs(dup[3])}")
+            print(f"  Date: {dup[1]}, Amount: ${abs(dup[3])}, Account: {dup[7]}")
             print(f"  Transaction 1: {dup[2]} (ID: {dup[0]})")
             print(f"  Transaction 2: {dup[6]} (ID: {dup[5]})")
             print("-" * 50)

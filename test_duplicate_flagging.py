@@ -11,7 +11,7 @@ def insert_duplicate_transaction():
     cursor = conn.cursor()
     
     # First, get an existing transaction
-    cursor.execute("SELECT transaction_id, date, name, amount, iso_currency_code FROM transactions LIMIT 1")
+    cursor.execute("SELECT transaction_id, date, name, amount, iso_currency_code, account_id FROM transactions LIMIT 1")
     transaction = cursor.fetchone()
     
     if not transaction:
@@ -25,14 +25,15 @@ def insert_duplicate_transaction():
     name = transaction[2]
     amount = transaction[3]
     currency = transaction[4]
+    account_id = transaction[5]
     
     # Insert the duplicate transaction
     try:
         cursor.execute("""
             INSERT INTO transactions 
-            (transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored) 
-            VALUES (?, ?, ?, ?, ?, 0, NULL, 0)
-        """, (new_transaction_id, date, name, amount, currency))
+            (transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored, account_id) 
+            VALUES (?, ?, ?, ?, ?, 0, NULL, 0, ?)
+        """, (new_transaction_id, date, name, amount, currency, account_id))
         
         conn.commit()
         

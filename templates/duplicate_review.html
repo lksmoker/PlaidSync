@@ -95,7 +95,7 @@
             const header = document.createElement('div');
             header.className = 'pair-header';
             header.innerHTML = `
-                <div>Date: ${pair.date}</div>
+                <div>Date: ${pair.date} | Account: ${pair.account_id || 'Unknown'}</div>
                 <div class="amount">Amount: $${Math.abs(pair.amount).toFixed(2)}</div>
             `;
             pairDiv.appendChild(header);

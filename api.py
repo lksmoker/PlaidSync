@@ -173,9 +173,10 @@ def duplicate_pairs():
         cursor.execute("""
             SELECT t1.transaction_id, t1.date, t1.name, t1.amount, t1.iso_currency_code, 
                    t2.transaction_id as duplicate_id, t2.name as duplicate_name,
-                   t1.confirmed_duplicate, t2.confirmed_duplicate
+                   t1.confirmed_duplicate, t2.confirmed_duplicate,
+                   t1.account_id
             FROM transactions t1
-            JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount
+            JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount AND t1.account_id = t2.account_id
             WHERE t1.transaction_id < t2.transaction_id
             AND t1.potential_duplicate = 1 AND t2.potential_duplicate = 1
             ORDER BY t1.date DESC, t1.amount
@@ -186,6 +187,7 @@ def duplicate_pairs():
             pairs.append({
                 "date": row[1],
                 "amount": row[3],
+                "account_id": row[9],
                 "transaction1": {
                     "id": row[0],
                     "name": row[2],
