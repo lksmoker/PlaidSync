@@ -23,19 +23,29 @@ def find_duplicate_transactions():
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
 
+    # First, check if account_id column exists, otherwise create it
+    try:
+        cursor.execute("SELECT account_id FROM transactions LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN account_id TEXT")
+        conn.commit()
+
     # Query that finds transactions with the same date, amount, and account
+    # For NULL account_id, we still want to find duplicates based on date and amount only
     cursor.execute("""
         SELECT t1.transaction_id, t1.date, t1.name, t1.amount, t1.iso_currency_code, 
                t2.transaction_id as duplicate_id, t2.name as duplicate_name,
                t1.account_id as account_id
         FROM transactions t1
-        JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount AND t1.account_id = t2.account_id
+        JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount 
+                            AND (t1.account_id = t2.account_id OR (t1.account_id IS NULL AND t2.account_id IS NULL))
         WHERE t1.transaction_id < t2.transaction_id  -- Avoid listing the same pair twice
         ORDER BY t1.date DESC, t1.amount;
     """)
 
     duplicates = cursor.fetchall()
-
+    conn.close()
+    
     return duplicates
 
 def flag_duplicate_transactions():

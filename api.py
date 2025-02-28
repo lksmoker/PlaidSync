@@ -176,7 +176,8 @@ def duplicate_pairs():
                    t1.confirmed_duplicate, t2.confirmed_duplicate,
                    t1.account_id
             FROM transactions t1
-            JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount AND t1.account_id = t2.account_id
+            JOIN transactions t2 ON t1.date = t2.date AND t1.amount = t2.amount 
+                              AND (t1.account_id = t2.account_id OR (t1.account_id IS NULL AND t2.account_id IS NULL))
             WHERE t1.transaction_id < t2.transaction_id
             AND t1.potential_duplicate = 1 AND t2.potential_duplicate = 1
             ORDER BY t1.date DESC, t1.amount
