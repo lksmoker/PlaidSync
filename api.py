@@ -26,8 +26,10 @@ def home():
             "POST /categories": "Add a new category",
             "PUT /categories/<id>": "Update a category",
             "DELETE /categories/<id>": "Delete a category",
-            "GET /processed-transactions": "Get all categorized or ignored transactions",
-            "GET /unprocessed-transactions": "Get all unprocessed transactions",
+            "GET /processed-transactions":
+            "Get all categorized or ignored transactions",
+            "GET /unprocessed-transactions":
+            "Get all unprocessed transactions",
             "GET /transactions": "Get all transactions",
             "GET /accounts": "Get all accounts",
             "POST /update-transactions": "Update or insert transactions"
@@ -37,236 +39,220 @@ def home():
 
 @app.route('/categories')
 def get_categories():
+    """Fetch all categories and structure them as a nested hierarchy."""
     with get_db_connection() as conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT id, name, parent_id 
-                FROM categories 
-                ORDER BY parent_id NULLS FIRST, name
-            """)
+            cursor.execute(
+                "SELECT id, name, parent_id FROM categories ORDER BY parent_id, name"
+            )
             categories = cursor.fetchall()
 
-            # Process categories into a nested structure
             category_dict = {}
+
+            # Ensure all categories exist in the dictionary
             for cat in categories:
                 cat_dict = dict(cat)
                 cat_id = cat_dict["id"]
                 parent_id = cat_dict["parent_id"]
 
-                if parent_id is None:
+                if cat_id not in category_dict:
                     category_dict[cat_id] = {
                         "id": cat_id,
                         "name": cat_dict["name"],
                         "subcategories": []
                     }
-                elif parent_id in category_dict:
-                    category_dict[parent_id]["subcategories"].append({
-                        "id": cat_id,
-                        "name": cat_dict["name"]
-                    })
 
-            return jsonify(list(category_dict.values()))
+                # If it's a subcategory, attach it to its parent
+                if parent_id is not None:
+                    if parent_id not in category_dict:
+                        category_dict[parent_id] = {
+                            "id": parent_id,
+                            "name": None,  # Placeholder
+                            "subcategories": []
+                        }
+                    category_dict[parent_id]["subcategories"].append(
+                        category_dict[cat_id])
+
+            # **Only return categories that have no parent (top-level categories)**
+            top_level_categories = [
+                cat for cat in category_dict.values()
+                if cat["name"] is not None and cat["id"] not in {
+                    sub["id"]
+                    for parent in category_dict.values()
+                    for sub in parent["subcategories"]
+                }
+            ]
+
+            return jsonify(top_level_categories)
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+
 @app.route('/processed-transactions')
 def processed_transactions():
     """Fetch all transactions that have been categorized or ignored."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
             SELECT * FROM transactions
-            WHERE (user_category_id IS NOT NULL AND user_category_id != '') 
-            OR ignored = 1
+            WHERE user_category_id IS NOT NULL OR ignored = 1
             ORDER BY date DESC
         """)
-
-    transactions = cursor.fetchall()
-    conn.close()
-
-    return jsonify([dict(tx) for tx in transactions])
+        transactions = cursor.fetchall()
+        return jsonify([dict(tx) for tx in transactions])
 
 
 @app.route('/unprocessed-transactions')
 def unprocessed_transactions():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored
-        FROM transactions 
-        WHERE user_category_id IS NULL AND ignored = 0
-        ORDER BY date DESC
-    """)
-
-    transactions = cursor.fetchall()
-    conn.close()
-
-    return jsonify([dict(tx) for tx in transactions])
+    """Fetch transactions that haven't been categorized or ignored."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT transaction_id, date, name, amount, iso_currency_code, pending, plaid_category_id, user_category_id, ignored
+            FROM transactions 
+            WHERE user_category_id IS NULL AND ignored = 0
+            ORDER BY date DESC;
+        """)
+        transactions = cursor.fetchall()
+        return jsonify([dict(tx) for tx in transactions])
 
 
 @app.route('/transactions')
 def all_transactions():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM transactions ORDER BY date DESC")
-
-    transactions = cursor.fetchall()
-    conn.close()
-
-    return jsonify([dict(tx) for tx in transactions])
+    """Fetch all transactions."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM transactions ORDER BY date DESC")
+        transactions = cursor.fetchall()
+        return jsonify([dict(tx) for tx in transactions])
 
 
 @app.route('/accounts')
 def accounts():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Fetch all accounts."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM accounts")
+        accounts = cursor.fetchall()
+        return jsonify([dict(acc) for acc in accounts])
 
-    cursor.execute("SELECT * FROM accounts")
-
-    accounts = cursor.fetchall()
-    conn.close()
-
-    return jsonify([dict(acc) for acc in accounts])
-
-
-@app.route('/setup')
-def setup():
-    return render_template('setup.html')
 
 @app.route('/categories', methods=['POST'])
 def add_category():
+    """Add a new category."""
     data = request.json
     if not data or 'name' not in data:
         return jsonify({"error": "Category name is required"}), 400
-    
-    conn = None
+
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", 
-                      (data['name'], data.get('parent_id')))
-        conn.commit()
-        return jsonify({"success": True, "id": cursor.lastrowid})
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO categories (name, parent_id) VALUES (?, ?)",
+                (data['name'], data.get('parent_id')))
+            conn.commit()
+            return jsonify({"success": True, "id": cursor.lastrowid})
     except sqlite3.IntegrityError:
         return jsonify({"error": "Category already exists"}), 409
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
 
-@app.route('/categories/<int:category_id>', methods=['PUT'])
-def update_category(category_id):
-    data = request.json
-    if not data or 'name' not in data:
-        return jsonify({"error": "Category name is required"}), 400
-    
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE categories SET name = ? WHERE id = ?", 
-                      (data['name'], category_id))
-        conn.commit()
-        if cursor.rowcount == 0:
-            return jsonify({"error": "Category not found"}), 404
-        return jsonify({"success": True})
-    except sqlite3.IntegrityError:
-        return jsonify({"error": "Category name already exists"}), 409
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/categories/<int:category_id>', methods=['DELETE'])
-def delete_category(category_id):
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM categories WHERE id = ?", (category_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
-            return jsonify({"error": "Category not found"}), 404
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
 
 @app.route('/update-transactions', methods=['POST'])
 def update_transactions():
+    """Update or insert transactions."""
     data = request.json
     transactions = data.get("transactions", [])
 
-    print("🚀 Received Transactions for Update:", transactions)
-
     if not transactions:
-        print("❌ No transactions received!")
         return jsonify({
             "success": False,
             "error": "No transactions provided"
         }), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        try:
+            for txn in transactions:
+                txn.setdefault("ignored", 0)  # Default ignored = 0 if missing
+
+                if "transaction_id" not in txn:
+                    continue
+
+                # Check if the transaction already exists
+                cursor.execute(
+                    "SELECT COUNT(*) FROM transactions WHERE transaction_id = ?",
+                    (txn["transaction_id"], ))
+                exists = cursor.fetchone()[0]
+
+                if exists:
+                    cursor.execute(
+                        """
+                        UPDATE transactions
+                        SET user_category_id = ?, ignored = ?
+                        WHERE transaction_id = ?
+                    """,
+                        (txn.get("user_category_id",
+                                 None), txn["ignored"], txn["transaction_id"]))
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO transactions (transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (txn["transaction_id"], txn["date"], txn["name"],
+                          txn["amount"], txn["iso_currency_code"],
+                          txn["pending"], txn.get("user_category_id",
+                                                  None), txn["ignored"]))
+
+            conn.commit()
+            return jsonify({"success": True, "updated": len(transactions)})
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/categories/<int:category_id>', methods=['PUT'])
+def update_category(category_id):
+    """Update an existing category."""
+    data = request.json
+    if not data or 'name' not in data:
+        return jsonify({"error": "Category name is required"}), 400
 
     try:
-        for txn in transactions:
-            txn.setdefault("ignored", 0)  # ✅ Default ignored = 0 if missing
-            print(f"🔄 Processing transaction: {txn}")
-
-            if "transaction_id" not in txn:
-                print("❌ Missing transaction_id, skipping:", txn)
-                continue
-
-            # ✅ Check if the transaction already exists
-            cursor.execute(
-                "SELECT COUNT(*) FROM transactions WHERE transaction_id = ?",
-                (txn["transaction_id"], ))
-            exists = cursor.fetchone()[0]
-
-            if exists:
-                print(f"✏️ Updating existing transaction in DB: {txn}")
-                cursor.execute(
-                    """
-                    UPDATE transactions
-                    SET user_category_id = ?, ignored = ?
-                    WHERE transaction_id = ?
-                """, (txn.get("category",
-                              ""), txn["ignored"], txn["transaction_id"]))
-            else:
-                print(f"🆕 Inserting new manual transaction: {txn}")
-                cursor.execute(
-                    """
-                    INSERT INTO transactions (transaction_id, date, name, amount, iso_currency_code, pending, user_category_id, ignored)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (txn["transaction_id"], txn["date"], txn["name"],
-                      txn["amount"], txn["iso_currency_code"], txn["pending"],
-                      txn.get("category", ""), txn["ignored"]))
-
-        conn.commit()
-        conn.close()
-        print("✅ Transactions successfully updated!")
-        return jsonify({"success": True, "updated": len(transactions)})
-
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE categories SET name = ? WHERE id = ?",
+                           (data['name'], category_id))
+            conn.commit()
+            if cursor.rowcount == 0:
+                return jsonify({"error": "Category not found"}), 404
+            return jsonify({"success": True})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Category name already exists"}), 409
     except Exception as e:
-        print("🚨 Error updating transactions:", str(e))
-        conn.rollback()
-        conn.close()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/categories/<int:category_id>', methods=['DELETE'])
+def delete_category(category_id):
+    """Delete a category."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM categories WHERE id = ?",
+                           (category_id, ))
+            conn.commit()
+            if cursor.rowcount == 0:
+                return jsonify({"error": "Category not found"}), 404
+            return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
-    # Enable HTTP/1.1 support
     WSGIRequestHandler.protocol_version = "HTTP/1.1"
-
-    # Run the app
     app.run(host='0.0.0.0', port=80, debug=False)
