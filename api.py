@@ -31,6 +31,8 @@ def home():
             "GET /unprocessed-transactions":
             "Get all unprocessed transactions",
             "GET /transactions": "Get all transactions",
+            "GET /duplicate-transactions":
+            "Get all potential duplicate transactions",
             "GET /accounts": "Get all accounts",
             "POST /update-transactions": "Update or insert transactions"
         }
@@ -128,6 +130,29 @@ def all_transactions():
         transactions = cursor.fetchall()
         return jsonify([dict(tx) for tx in transactions])
 
+
+@app.route('/duplicate-transactions')
+def duplicate_transactions():
+    """Fetch all flagged duplicate transactions."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT * FROM transactions 
+                WHERE potential_duplicate = 1
+                ORDER BY date DESC, amount
+            """)
+        except sqlite3.OperationalError:
+            # If column doesn't exist yet, add it
+            cursor.execute("ALTER TABLE transactions ADD COLUMN potential_duplicate INTEGER DEFAULT 0")
+            conn.commit()
+            cursor.execute("""
+                SELECT * FROM transactions 
+                WHERE potential_duplicate = 1
+                ORDER BY date DESC, amount
+            """)
+        transactions = cursor.fetchall()
+        return jsonify([dict(tx) for tx in transactions])
 
 @app.route('/accounts')
 def accounts():
