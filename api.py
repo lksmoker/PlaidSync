@@ -10,7 +10,18 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")  # Fetch from environment variables
 supabase_key = os.getenv("SUPABASE_KEY")  # Fetch from environment variables
-supabase = create_client(supabase_url, supabase_key)
+
+# Check if environment variables are set
+if not supabase_url or not supabase_key:
+    print("⚠️ Warning: SUPABASE_URL or SUPABASE_KEY environment variables not set.")
+    print("Please set these in your Replit Secrets.")
+
+# Initialize Supabase client
+try:
+    supabase = create_client(supabase_url, supabase_key)
+except Exception as e:
+    print(f"Error connecting to Supabase: {str(e)}")
+    supabase = None
 
 # Route to check server status
 @app.route('/')
@@ -45,8 +56,13 @@ def test_connection():
 # Route to get all categories
 @app.route('/categories', methods=['GET'])
 def get_categories():
-    categories = supabase.table('categories').select('*').execute()
-    return jsonify(categories.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+        categories = supabase.table('categories').select('*').execute()
+        return jsonify(categories.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to get all transactions
 @app.route('/transactions', methods=['GET'])
