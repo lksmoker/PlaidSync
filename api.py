@@ -33,6 +33,15 @@ def home():
         }
     })
 
+@app.route('/test-connection', methods=['GET'])
+def test_connection():
+    try:
+        # Attempt a basic query to check the connection
+        response = supabase.table('transactions').select('*').limit(1).execute()
+        return jsonify({"message": "Connection successful", "data": response.data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
 # Route to get all categories
 @app.route('/categories', methods=['GET'])
 def get_categories():
