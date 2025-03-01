@@ -52,6 +52,14 @@ def test_connection():
         return jsonify({"message": "Connection successful", "data": response.data}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    """Simple endpoint to test if the API is running correctly."""
+    return jsonify({
+        "status": "ok",
+        "message": "API is running"
+    })
         
 # Route to get all categories
 @app.route('/categories', methods=['GET'])
@@ -149,4 +157,4 @@ def duplicate_review():
 
 # Start the app
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000, debug=True)
