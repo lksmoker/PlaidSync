@@ -29,6 +29,7 @@ def home():
     return jsonify({
         "status": "online",
         "endpoints": {
+            "GET /accounts": "Get all accounts",
             "GET /categories": "Get all categories in a nested structure",
             "POST /categories": "Add a new category",
             "PUT /categories/<id>": "Update a category",
@@ -44,6 +45,18 @@ def home():
         }
     })
 
+@app.route('/accounts', methods=['GET'])
+def get_accounts():
+    """Fetch all accounts from Supabase."""
+    try:
+        response = supabase.table("accounts").select("*").execute()
+        if response.data:
+            return jsonify(response.data), 200
+        else:
+            return jsonify({"message": "No accounts found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
 @app.route('/test-connection', methods=['GET'])
 def test_connection():
     try:
