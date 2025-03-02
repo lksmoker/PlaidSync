@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from supabase import create_client, Client
 import os
@@ -41,9 +41,21 @@ def home():
             "POST /confirm-duplicate": "Mark a transaction as confirmed duplicate or not",
             "GET /duplicate-pairs": "Get potential duplicate transactions as pairs",
             "GET /duplicate-review": "Interactive page to review duplicate transactions",
-            "GET /duplicate-transactions": "Get all potential duplicate transactions"
+            "GET /duplicate-transactions": "Get all potential duplicate transactions",
+            "GET /setup": "Setup page for managing categories",
+            "GET /review": "Page for reviewing duplicate transactions"
         }
     })
+
+@app.route('/setup')
+def setup_page():
+    """Render the setup page for managing categories."""
+    return render_template('setup.html')
+
+@app.route('/review')
+def review_page():
+    """Render the duplicate review page."""
+    return render_template('duplicate_review.html')
 
 @app.route('/accounts', methods=['GET'])
 def get_accounts():
