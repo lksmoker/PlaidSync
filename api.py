@@ -87,7 +87,7 @@ def get_processed_transactions():
 # Route to get all unprocessed transactions
 @app.route('/unprocessed-transactions', methods=['GET'])
 def get_unprocessed_transactions():
-    transactions = supabase.table('transactions').select('*').is_('ignored', None).execute()
+    transactions = supabase.table('transactions').select('*').eq('ignored', False).is_('user_category_id', None).execute()
     return jsonify(transactions.data)
 
 # Route to add a new category
