@@ -59,15 +59,18 @@ def review_page():
 
 @app.route('/accounts', methods=['GET'])
 def get_accounts():
-    """Fetch all accounts from Supabase."""
-    try:
-        response = supabase.table("accounts").select("*").execute()
-        if response.data:
-            return jsonify(response.data), 200
-        else:
-            return jsonify({"message": "No accounts found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            """Fetch all accounts from Supabase."""
+            try:
+                response = supabase.table("accounts").select("*").execute()
+
+                if response.data:
+                    # Ensure 'id' is mapped correctly
+                    accounts = [{"account_id": acc["id"], **acc} for acc in response.data]
+                    return jsonify(accounts), 200
+                else:
+                    return jsonify({"message": "No accounts found"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
         
 @app.route('/test-connection', methods=['GET'])
 def test_connection():
