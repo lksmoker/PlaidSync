@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from supabase import create_client, Client
 import os
+import subprocess
 
 # Create Flask app
 app = Flask(__name__)
@@ -43,7 +44,7 @@ def home():
             "GET /duplicate-review": "Interactive page to review duplicate transactions",
             "GET /duplicate-transactions": "Get all potential duplicate transactions",
             "GET /setup": "Setup page for managing categories",
-            "GET /review": "Page for reviewing duplicate transactions"
+            "GET /review": "Page for reviewing duplicate transactions",
             "POST /sync-plaid": "Runs Plaid_sync.py"
         }
     })
@@ -163,11 +164,11 @@ def delete_category(id):
 def confirm_duplicate():
     data = request.json
     transaction_id = data['transaction_id']
-    confirmed = data['confirmed']  # True or False
+    is_duplicate = data['is_duplicate']  # True or False
     transaction = supabase.table('transactions').update({
-        'confirmed_duplicate': confirmed
-    }).eq('transaction_id', transaction_id).execute()
-    return jsonify(transaction.data)
+        'confirmed_duplicate': is_duplicate
+    }).eq('id', transaction_id).execute()
+    return jsonify({"success": True, "data": transaction.data})
 
 # Route to update or insert transactions
 @app.route('/update-transactions', methods=['POST'])
@@ -181,9 +182,25 @@ def update_transactions():
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
-    # Example logic: You may need to adjust the logic based on how duplicates are tracked
-    duplicates = supabase.table('transactions').select('*').eq('potential_duplicate', 1).execute()
-    return jsonify(duplicates.data)
+    try:
+        # Get transactions flagged as potential duplicates
+        duplicates = supabase.table('transactions').select('*').eq('potential_duplicate', True).execute()
+        
+        # Format the data into pairs
+        pairs = []
+        for i in range(0, len(duplicates.data), 2):
+            if i + 1 < len(duplicates.data):
+                pairs.append({
+                    'date': duplicates.data[i]['date'],
+                    'amount': duplicates.data[i]['amount'],
+                    'account_id': duplicates.data[i].get('account_id', ''),
+                    'transaction1': duplicates.data[i],
+                    'transaction2': duplicates.data[i + 1]
+                })
+        
+        return jsonify(pairs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to get all potential duplicate transactions
 @app.route('/duplicate-transactions', methods=['GET'])
