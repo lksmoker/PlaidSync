@@ -136,7 +136,8 @@ def get_processed_transactions():
         if supabase is None:
             return jsonify({"error": "Supabase client not initialized"}), 500
             
-        transactions = supabase.table('transactions').select('*').eq('ignored', True).execute()
+        # Get transactions that are either ignored OR have a user_category_id set
+        transactions = supabase.table('transactions').select('*').or_('ignored.eq.true,user_category_id.not.is.null').execute()
         return jsonify(transactions.data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
