@@ -49,9 +49,7 @@ def home():
         }
     })
 
-@app.route('/ping', methods=['GET'])
-def ping():
-    return jsonify({"message": "Server is awake!"}), 200
+
 
 @app.route('/sync-plaid', methods=['POST'])
 def sync_plaid():
@@ -122,74 +120,142 @@ def get_categories():
 # Route to get all transactions
 @app.route('/transactions', methods=['GET'])
 def get_transactions():
-    transactions = supabase.table('transactions').select('*').order('date', desc=True).execute()
-    return jsonify(transactions.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        transactions = supabase.table('transactions').select('*').order('date', desc=True).execute()
+        return jsonify(transactions.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to get all processed (categorized/ignored) transactions
 @app.route('/processed-transactions', methods=['GET'])
 def get_processed_transactions():
-    transactions = supabase.table('transactions').select('*').eq('ignored', True).execute()
-    return jsonify(transactions.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        transactions = supabase.table('transactions').select('*').eq('ignored', True).execute()
+        return jsonify(transactions.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to get all unprocessed transactions
 @app.route('/unprocessed-transactions', methods=['GET'])
 def get_unprocessed_transactions():
-    transactions = supabase.table('transactions').select('*').eq('ignored', False).is_('user_category_id', None).execute()
-    return jsonify(transactions.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        transactions = supabase.table('transactions').select('*').eq('ignored', False).is_('user_category_id', None).execute()
+        return jsonify(transactions.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to add a new category
 @app.route('/categories', methods=['POST'])
 def add_category():
-    data = request.json
-    category = supabase.table('categories').insert({
-        'name': data['name'],
-        'parent_id': data.get('parent_id', None)
-    }).execute()
-    return jsonify(category.data), 201
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        data = request.json
+        if not data or 'name' not in data:
+            return jsonify({"error": "Missing required field: name"}), 400
+            
+        category = supabase.table('categories').insert({
+            'name': data['name'],
+            'parent_id': data.get('parent_id', None)
+        }).execute()
+        return jsonify(category.data), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to update a category
 @app.route('/categories/<int:id>', methods=['PUT'])
 def update_category(id):
-    data = request.json
-    category = supabase.table('categories').update({
-        'name': data['name'],
-        'parent_id': data.get('parent_id', None)
-    }).eq('id', id).execute()
-    return jsonify(category.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        data = request.json
+        if not data or 'name' not in data:
+            return jsonify({"error": "Missing required field: name"}), 400
+            
+        category = supabase.table('categories').update({
+            'name': data['name'],
+            'parent_id': data.get('parent_id', None)
+        }).eq('id', id).execute()
+        return jsonify(category.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to delete a category
 @app.route('/categories/<int:id>', methods=['DELETE'])
 def delete_category(id):
-    response = supabase.table('categories').delete().eq('id', id).execute()
-    return jsonify(response.data), 204
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        response = supabase.table('categories').delete().eq('id', id).execute()
+        return jsonify(response.data), 204
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to confirm a transaction as a duplicate or not
 @app.route('/confirm-duplicate', methods=['POST'])
 def confirm_duplicate():
-    data = request.json
-    transaction_id = data['transaction_id']
-    is_duplicate = data['is_duplicate']  # True or False
-    transaction = supabase.table('transactions').update({
-        'confirmed_duplicate': is_duplicate
-    }).eq('id', transaction_id).execute()
-    return jsonify({"success": True, "data": transaction.data})
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        data = request.json
+        if not data or 'transaction_id' not in data or 'is_duplicate' not in data:
+            return jsonify({"error": "Missing required fields: transaction_id or is_duplicate"}), 400
+            
+        transaction_id = data['transaction_id']
+        is_duplicate = data['is_duplicate']  # True or False
+        transaction = supabase.table('transactions').update({
+            'confirmed_duplicate': is_duplicate
+        }).eq('id', transaction_id).execute()
+        return jsonify({"success": True, "data": transaction.data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to update or insert transactions
 @app.route('/update-transactions', methods=['POST'])
 def update_transactions():
-    data = request.json
-    # Example logic: Iterate over incoming transactions and insert/update them
-    for transaction_data in data:
-        transaction = supabase.table('transactions').upsert(transaction_data).execute()
-    return jsonify({"message": "Transactions updated"}), 200
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        # Example logic: Iterate over incoming transactions and insert/update them
+        results = []
+        for transaction_data in data:
+            transaction = supabase.table('transactions').upsert(transaction_data).execute()
+            results.append(transaction.data)
+        return jsonify({"message": "Transactions updated", "results": results}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
     try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
         # Get transactions flagged as potential duplicates
         duplicates = supabase.table('transactions').select('*').eq('potential_duplicate', True).execute()
         
+        if not duplicates.data:
+            return jsonify([]), 200
+            
         # Format the data into pairs
         pairs = []
         for i in range(0, len(duplicates.data), 2):
@@ -209,14 +275,23 @@ def get_duplicate_pairs():
 # Route to get all potential duplicate transactions
 @app.route('/duplicate-transactions', methods=['GET'])
 def get_duplicate_transactions():
-    duplicates = supabase.table('transactions').select('*').eq('confirmed_duplicate', None).execute()
-    return jsonify(duplicates.data)
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+            
+        duplicates = supabase.table('transactions').select('*').eq('confirmed_duplicate', None).execute()
+        return jsonify(duplicates.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Route to review duplicate transactions (interactive)
 @app.route('/duplicate-review', methods=['GET'])
 def duplicate_review():
-    # This could be a placeholder for the interactive review page
-    return jsonify({"message": "Review page for duplicates"}), 200
+    try:
+        # Renders the HTML template from templates/duplicate_review.html
+        return render_template('duplicate_review.html')
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Start the app
 if __name__ == "__main__":
