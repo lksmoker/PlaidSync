@@ -44,8 +44,22 @@ def home():
             "GET /duplicate-transactions": "Get all potential duplicate transactions",
             "GET /setup": "Setup page for managing categories",
             "GET /review": "Page for reviewing duplicate transactions"
+            "POST /sync-plaid": "Runs Plaid_sync.py"
         }
     })
+
+@app.route('/sync-plaid', methods=['POST'])
+def sync_plaid():
+    """Trigger plaid_sync.py manually."""
+    try:
+        result = subprocess.run(["python3", "plaid_sync.py"], capture_output=True, text=True)
+
+        if result.returncode == 0:
+            return jsonify({"message": "Plaid sync successful", "output": result.stdout}), 200
+        else:
+            return jsonify({"error": "Plaid sync failed", "output": result.stderr}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/setup')
 def setup_page():
