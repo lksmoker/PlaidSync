@@ -49,6 +49,10 @@ def home():
         }
     })
 
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"message": "Server is awake!"}), 200
+
 @app.route('/sync-plaid', methods=['POST'])
 def sync_plaid():
     """Trigger plaid_sync.py manually."""
