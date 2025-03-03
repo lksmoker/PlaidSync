@@ -61,65 +61,118 @@ def fetch_account_balances():
 # ✅ Store account balances in Supabase
 def store_account_balances(accounts):
     for account in accounts:
-        response = supabase.table("accounts").upsert({
-            "id": account["account_id"],
-            "name": account["name"],
-            "official_name": account.get("official_name", "Unknown"),
-            "type": account["type"],
-            "subtype": account["subtype"],
-            "balance_available": account.get("balances", {}).get("available"),
-            "balance_current": account.get("balances", {}).get("current"),
-            "iso_currency_code": account.get("balances", {}).get("iso_currency_code", "USD")
-        }).execute()
+        try:
+            # First check if account already exists
+            existing = supabase.table("accounts").select("*").eq("id", account["account_id"]).execute()
+            
+            # Prepare account data
+            account_data = {
+                "id": account["account_id"],
+                "name": account["name"],
+                "official_name": account.get("official_name", "Unknown"),
+                "type": account["type"],
+                "subtype": account["subtype"],
+                "balance_available": account.get("balances", {}).get("available"),
+                "balance_current": account.get("balances", {}).get("current"),
+                "iso_currency_code": account.get("balances", {}).get("iso_currency_code", "USD")
+            }
+            
+            if existing.data and len(existing.data) > 0:
+                # Update existing account
+                response = supabase.table("accounts").update(account_data).eq("id", account["account_id"]).execute()
+                print(f"✅ Updated account: {account['name']}")
+            else:
+                # Insert new account
+                response = supabase.table("accounts").insert(account_data).execute()
+                print(f"✅ Inserted new account: {account['name']}")
+                
+        except Exception as e:
+            print(f"❌ Error storing account {account.get('name', 'Unknown')}: {str(e)}")
 
 # ✅ Store transactions in Supabase
 def store_transactions(transactions):
+    inserted_count = 0
+    updated_count = 0
+    skipped_count = 0
+    
     for tx in transactions:
-        # Ensure account_id exists in accounts before inserting transaction
-        account_exists = supabase.table("accounts").select("id").eq("id", tx["account_id"]).execute()
-        if not account_exists.data:
-            print(f"⚠️ Skipping transaction {tx['transaction_id']} - Account {tx['account_id']} not found.")
-            continue
-
-        response = supabase.table("transactions").upsert({
-            "transaction_id": tx["transaction_id"],
-            "account_id": tx["account_id"],
-            "amount": tx["amount"],
-            "iso_currency_code": tx.get("iso_currency_code", "USD"),
-            "date": tx["date"],
-            "name": tx["name"],
-            "merchant_name": tx.get("merchant_name"),
-            "category": ", ".join(tx.get("category", [])),
-            "plaid_category_id": tx.get("category_id"),
-            "pending": tx["pending"],
-            "location_address": tx["location"].get("address"),
-            "location_city": tx["location"].get("city"),
-            "location_region": tx["location"].get("region"),
-            "location_postal_code": tx["location"].get("postal_code"),
-            "location_country": tx["location"].get("country"),
-            "user_category_id": None,  # Placeholder
-            "ignored": False
-        }).execute()
+        try:
+            # Ensure account_id exists in accounts before inserting transaction
+            account_exists = supabase.table("accounts").select("id").eq("id", tx["account_id"]).execute()
+            if not account_exists.data:
+                print(f"⚠️ Skipping transaction {tx['transaction_id']} - Account {tx['account_id']} not found.")
+                skipped_count += 1
+                continue
+            
+            # Check if transaction already exists
+            existing = supabase.table("transactions").select("*").eq("transaction_id", tx["transaction_id"]).execute()
+            
+            # Prepare transaction data
+            tx_data = {
+                "transaction_id": tx["transaction_id"],
+                "account_id": tx["account_id"],
+                "amount": tx["amount"],
+                "iso_currency_code": tx.get("iso_currency_code", "USD"),
+                "date": tx["date"],
+                "name": tx["name"],
+                "merchant_name": tx.get("merchant_name"),
+                "category": ", ".join(tx.get("category", [])),
+                "plaid_category_id": tx.get("category_id"),
+                "pending": tx["pending"],
+                "location_address": tx["location"].get("address"),
+                "location_city": tx["location"].get("city"),
+                "location_region": tx["location"].get("region"),
+                "location_postal_code": tx["location"].get("postal_code"),
+                "location_country": tx["location"].get("country")
+            }
+            
+            # Don't overwrite these fields if transaction exists
+            if not existing.data or len(existing.data) == 0:
+                tx_data["user_category_id"] = None
+                tx_data["ignored"] = False
+                
+                response = supabase.table("transactions").insert(tx_data).execute()
+                inserted_count += 1
+            else:
+                # Update only fields from Plaid, preserving user modifications
+                response = supabase.table("transactions").update(tx_data).eq("transaction_id", tx["transaction_id"]).execute()
+                updated_count += 1
+                
+        except Exception as e:
+            print(f"❌ Error storing transaction {tx.get('transaction_id', 'Unknown')}: {str(e)}")
+            skipped_count += 1
+    
+    print(f"📊 Transaction sync summary: {inserted_count} inserted, {updated_count} updated, {skipped_count} skipped")
 
 # ✅ Main function to fetch and store transactions & balances
 def main():
-    print("🔄 Fetching account balances from Plaid...")
-    accounts = fetch_account_balances()
-    if accounts:
-        print(f"✅ Storing {len(accounts)} accounts in Supabase first...")
-        store_account_balances(accounts)
-        print("💾 Accounts stored successfully.")
-    else:
-        print("⚠️ No accounts retrieved.")
+    try:
+        print("🔄 Fetching account balances from Plaid...")
+        accounts = fetch_account_balances()
+        if accounts:
+            print(f"✅ Fetched {len(accounts)} accounts from Plaid.")
+            print(f"🔄 Storing accounts in Supabase...")
+            store_account_balances(accounts)
+            print("💾 Account synchronization complete.")
+        else:
+            print("⚠️ No accounts retrieved from Plaid.")
 
-    print("🔄 Fetching transactions from Plaid...")
-    transactions = fetch_transactions()
-    if transactions:
-        print(f"✅ Storing {len(transactions)} transactions in Supabase...")
-        store_transactions(transactions)
-        print("💾 Transactions stored successfully.")
-    else:
-        print("⚠️ No transactions retrieved.")
+        print("\n🔄 Fetching transactions from Plaid...")
+        transactions = fetch_transactions()
+        if transactions:
+            print(f"✅ Fetched {len(transactions)} transactions from Plaid.")
+            print(f"🔄 Storing transactions in Supabase...")
+            store_transactions(transactions)
+            print("💾 Transaction synchronization complete.")
+        else:
+            print("⚠️ No transactions retrieved from Plaid.")
+            
+        print("\n🏁 Plaid synchronization process completed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Error in Plaid synchronization process: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
