@@ -20,3 +20,4 @@ git+https://github.com/supabase-community/supabase-py.git
 supabase
 supabase
 supabase
+supabase
