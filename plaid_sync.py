@@ -22,7 +22,7 @@ PLAID_ACCOUNTS_URL = f"{PLAID_ENV}/accounts/get"
 
 def fetch_transactions():
     headers = {"Content-Type": "application/json"}
-    start_date = (datetime.today() - timedelta(days=10)).strftime('%Y-%m-%d')
+    start_date = (datetime.today() - timedelta(days=30)).strftime('%Y-%m-%d')
     end_date = datetime.today().strftime('%Y-%m-%d')
     payload = {
         "client_id": PLAID_CLIENT_ID,
