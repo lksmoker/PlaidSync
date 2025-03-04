@@ -280,23 +280,24 @@ def update_transactions():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        print("🔍 Received transaction update request:", data)  # ✅ Debugging Log
+        print("🔍 Received transaction update request:", data)  # ✅ Log received data
 
         results = []
         for transaction_data in data:
             try:
                 print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
 
+                # Ensure correct field names
                 transaction_update = {
-                    "transaction_id": transaction_data.get("transaction_id"),
+                    "transaction_id": transaction_data.get("transaction_id"),  # Ensure correct field name
                     "date": transaction_data.get("date"),
                     "name": transaction_data.get("name"),
                     "user_category_id": int(transaction_data.get("user_category_id")) if transaction_data.get("user_category_id") else None,
-                    "user_subcategory_id": int(transaction_data.get("user_subcategory_id")) if transaction_data.get("user_subcategory_id") else None,  # ✅ Add subcategory
+                    "user_subcategory_id": int(transaction_data.get("user_subcategory_id")) if transaction_data.get("user_subcategory_id") else None,
                     "ignored": bool(transaction_data.get("ignored")),
                 }
 
-                print("📝 Updating transaction with:", transaction_update)  # ✅ Log before sending to Supabase
+                print("📝 Sending to Supabase:", transaction_update)  # ✅ Log before sending to Supabase
                 transaction = supabase.table('transactions').upsert(transaction_update).execute()
                 results.append(transaction.data)
 
