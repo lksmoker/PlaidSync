@@ -278,6 +278,7 @@ def update_transactions():
 
         data = request.json
         if not data:
+            print("❌ No data received in request.")  # 🔥 Debugging log
             return jsonify({"error": "No data provided"}), 400
 
         print("🔍 Received transaction update request:", data)  # ✅ Log received data
@@ -287,7 +288,6 @@ def update_transactions():
             try:
                 print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
 
-                # Ensure correct field names
                 transaction_update = {
                     "transaction_id": transaction_data.get("transaction_id"),  # Ensure correct field name
                     "date": transaction_data.get("date"),
@@ -310,7 +310,6 @@ def update_transactions():
     except Exception as e:
         print("❌ General API error:", e)  # 🔥 Log general error
         return jsonify({"error": f"API failure: {str(e)}"}), 500
-
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
