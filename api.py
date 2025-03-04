@@ -280,24 +280,35 @@ def update_transactions():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        print("Received transaction update request:", data)  # 🔍 Debugging Log
+        print("🔍 Received transaction update request:", data)  # ✅ Debugging Log
 
         results = []
         for transaction_data in data:
             try:
-                print("Updating transaction:", transaction_data)  # 🔍 Log each transaction
-                transaction = supabase.table('transactions').upsert(transaction_data).execute()
+                print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
+
+                transaction_update = {
+                    "transaction_id": transaction_data.get("transaction_id"),
+                    "date": transaction_data.get("date"),
+                    "name": transaction_data.get("name"),
+                    "user_category_id": int(transaction_data.get("user_category_id")) if transaction_data.get("user_category_id") else None,
+                    "user_subcategory_id": int(transaction_data.get("user_subcategory_id")) if transaction_data.get("user_subcategory_id") else None,  # ✅ Add subcategory
+                    "ignored": bool(transaction_data.get("ignored")),
+                }
+
+                print("📝 Updating transaction with:", transaction_update)  # ✅ Log before sending to Supabase
+                transaction = supabase.table('transactions').upsert(transaction_update).execute()
                 results.append(transaction.data)
+
             except Exception as e:
-                print("Error updating transaction:", e)  # 🔥 Log specific error
+                print("❌ Error updating transaction:", e)  # 🔥 Log specific error
                 return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
 
         return jsonify({"message": "Transactions updated successfully", "results": results}), 200
 
     except Exception as e:
-        print("General API error:", e)  # 🔍 Log API-wide errors
+        print("❌ General API error:", e)  # 🔥 Log general error
         return jsonify({"error": f"API failure: {str(e)}"}), 500
-
 
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
