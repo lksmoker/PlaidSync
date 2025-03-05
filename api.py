@@ -271,7 +271,7 @@ def confirm_duplicate():
         # Route to update or insert transactions
 
 @app.route('/update-transactions', methods=['POST'])
-        def update_transactions():
+    def update_transactions():
             try:
                 if supabase is None:
                     return jsonify({"error": "Supabase client not initialized"}), 500
