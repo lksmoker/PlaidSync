@@ -271,65 +271,65 @@ def confirm_duplicate():
         # Route to update or insert transactions
 
 @app.route('/update-transactions', methods=['POST'])
-    def update_transactions():
+def update_transactions():
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
+        data = request.json
+        if not data:
+            print("❌ No data received in request.")  # 🔥 Debugging log
+            return jsonify({"error": "No data provided"}), 400
+
+        print("🔍 Received transaction update request:", data)  # ✅ Log received data
+
+        results = []
+        for transaction_data in data:
             try:
-                if supabase is None:
-                    return jsonify({"error": "Supabase client not initialized"}), 500
+                transaction_id = transaction_data.get("transaction_id")
+                if not transaction_id:
+                    print("⚠️ Missing transaction_id:", transaction_data)
+                    continue  # Skip this transaction
 
-                data = request.json
-                if not data:
-                    print("❌ No data received in request.")  # 🔥 Debugging log
-                    return jsonify({"error": "No data provided"}), 400
+                print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
 
-                print("🔍 Received transaction update request:", data)  # ✅ Log received data
+                # Only include fields that are provided in the update request
+                transaction_update = {}
+                if "date" in transaction_data:
+                    transaction_update["date"] = transaction_data["date"]
+                if "name" in transaction_data:
+                    transaction_update["name"] = transaction_data["name"]
+                if "user_category_id" in transaction_data:
+                    transaction_update["user_category_id"] = int(transaction_data["user_category_id"]) if transaction_data["user_category_id"] is not None else None
+                if "user_subcategory_id" in transaction_data:
+                    transaction_update["user_subcategory_id"] = int(transaction_data["user_subcategory_id"]) if transaction_data["user_subcategory_id"] is not None else None
+                if "ignored" in transaction_data:
+                    transaction_update["ignored"] = bool(transaction_data["ignored"])
 
-                results = []
-                for transaction_data in data:
-                    try:
-                        transaction_id = transaction_data.get("transaction_id")
-                        if not transaction_id:
-                            print("⚠️ Missing transaction_id:", transaction_data)
-                            continue  # Skip this transaction
+                if not transaction_update:
+                    print(f"⚠️ No valid fields to update for transaction {transaction_id}")
+                    continue  # Skip empty updates
 
-                        print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
+                print("📝 Sending to Supabase:", transaction_update)  # ✅ Log before sending to Supabase
+                transaction = (
+                    supabase
+                    .table('transactions')
+                    .update(transaction_update)
+                    .eq('transaction_id', transaction_id)  # 🔥 Correct filtering method
+                    .execute()
+                )
 
-                        # Only include fields that are provided in the update request
-                        transaction_update = {}
-                        if "date" in transaction_data:
-                            transaction_update["date"] = transaction_data["date"]
-                        if "name" in transaction_data:
-                            transaction_update["name"] = transaction_data["name"]
-                        if "user_category_id" in transaction_data:
-                            transaction_update["user_category_id"] = int(transaction_data["user_category_id"]) if transaction_data["user_category_id"] is not None else None
-                        if "user_subcategory_id" in transaction_data:
-                            transaction_update["user_subcategory_id"] = int(transaction_data["user_subcategory_id"]) if transaction_data["user_subcategory_id"] is not None else None
-                        if "ignored" in transaction_data:
-                            transaction_update["ignored"] = bool(transaction_data["ignored"])
-
-                        if not transaction_update:
-                            print(f"⚠️ No valid fields to update for transaction {transaction_id}")
-                            continue  # Skip empty updates
-
-                        print("📝 Sending to Supabase:", transaction_update)  # ✅ Log before sending to Supabase
-                        transaction = (
-                            supabase
-                            .table('transactions')
-                            .update(transaction_update)
-                            .eq('transaction_id', transaction_id)  # 🔥 Correct filtering method
-                            .execute()
-                        )
-
-                        results.append(transaction.data)
-
-                    except Exception as e:
-                        print("❌ Error updating transaction:", e)  # 🔥 Log specific error
-                        return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
-
-                return jsonify({"message": "Transactions updated successfully", "results": results}), 200
+                results.append(transaction.data)
 
             except Exception as e:
-                print("❌ General API error:", e)  # 🔥 Log general error
-                return jsonify({"error": f"API failure: {str(e)}"}), 500
+                print("❌ Error updating transaction:", e)  # 🔥 Log specific error
+                return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
+
+        return jsonify({"message": "Transactions updated successfully", "results": results}), 200
+
+    except Exception as e:
+        print("❌ General API error:", e)  # 🔥 Log general error
+        return jsonify({"error": f"API failure: {str(e)}"}), 500
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
