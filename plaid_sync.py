@@ -105,7 +105,10 @@ def store_transactions(transactions):
                 continue
 
             # ✅ Check if transaction exists
-            existing_tx = supabase.table("transactions").select("*").eq("transaction_id", tx["transaction_id"]).execute()
+            existing_tx = supabase.table("transactions").select("pending", "name", "date").eq("transaction_id", tx["transaction_id"]).execute()
+
+            # ✅ Determine if transaction is pending or posted
+            is_pending = tx["pending"]  # True = Pending, False = Posted
 
             # ✅ Prepare transaction data
             tx_data = {
@@ -116,7 +119,7 @@ def store_transactions(transactions):
                 "merchant_name": tx.get("merchant_name"),
                 "category": ", ".join(tx.get("category", [])),
                 "plaid_category_id": tx.get("category_id"),
-                "pending": tx["pending"],
+                "pending": is_pending,  # ✅ Store correct pending status
                 "location_address": tx["location"].get("address"),
                 "location_city": tx["location"].get("city"),
                 "location_region": tx["location"].get("region"),
@@ -124,33 +127,23 @@ def store_transactions(transactions):
                 "location_country": tx["location"].get("country"),
             }
 
-            if not existing_tx.data:
-                # ✅ Insert new transaction
-                tx_data["date"] = tx["date"]
-                tx_data["name"] = tx["name"]
-                tx_data["user_category_id"] = None
-                tx_data["ignored"] = False
-                tx_data["user_modified_name"] = False
-                tx_data["user_modified_date"] = False
-
-                supabase.table("transactions").insert(tx_data).execute()
-                inserted_count += 1
-            else:
-                # ✅ Update transaction while preserving user edits
+            if existing_tx.data:
                 existing_data = existing_tx.data[0]
 
-                if existing_data["user_modified_name"]:
-                    tx_data["name"] = existing_data["name"]
-                else:
-                    tx_data["name"] = tx["name"]
+                # ✅ If transaction is still pending, allow full update
+                if existing_data["pending"]:  # Was pending in DB
+                    supabase.table("transactions").update(tx_data).eq("transaction_id", tx["transaction_id"]).execute()
+                    updated_count += 1
 
-                if existing_data["user_modified_date"]:
-                    tx_data["date"] = existing_data["date"]
-                else:
-                    tx_data["date"] = tx["date"]
+                # ✅ If transaction was pending but is now posted, only update `pending` field
+                elif existing_data["pending"] and not is_pending:  # Moving from pending → posted
+                    supabase.table("transactions").update({"pending": False}).eq("transaction_id", tx["transaction_id"]).execute()
+                    updated_count += 1
 
-                supabase.table("transactions").update(tx_data).eq("transaction_id", tx["transaction_id"]).execute()
-                updated_count += 1
+                # ✅ If transaction is already posted, do not update name or date
+                else:
+                    print(f"🚫 Skipping update for already posted transaction: {tx['transaction_id']}")
+                    skipped_count += 1
 
         except Exception as e:
             print(f"❌ Error storing transaction {tx.get('transaction_id', 'Unknown')}: {str(e)}")
