@@ -132,12 +132,18 @@ def store_transactions(transactions):
 
                 # ✅ If transaction is still pending, allow full update
                 if existing_data["pending"]:  # Was pending in DB
+                    tx_data["name"] = tx["name"]  # ✅ Allow name update while pending
+                    tx_data["date"] = tx["date"]
                     supabase.table("transactions").update(tx_data).eq("transaction_id", tx["transaction_id"]).execute()
                     updated_count += 1
 
-                # ✅ If transaction was pending but is now posted, only update `pending` field
+                # ✅ If transaction was pending but is now posted, update the name ONCE
                 elif existing_data["pending"] and not is_pending:  # Moving from pending → posted
-                    supabase.table("transactions").update({"pending": False}).eq("transaction_id", tx["transaction_id"]).execute()
+                    supabase.table("transactions").update({
+                        "pending": False,
+                        "name": tx["name"],  # ✅ Allow final name update
+                        "date": tx["date"]
+                    }).eq("transaction_id", tx["transaction_id"]).execute()
                     updated_count += 1
 
                 # ✅ If transaction is already posted, do not update name or date
