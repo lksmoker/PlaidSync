@@ -113,17 +113,11 @@ def store_account_balances(accounts):
 # ✅ Store Transactions in Supabase
 # -------------------------------------------
 def store_transactions(transactions):
-    inserted_count, updated_count = 0, 0
+    inserted_count, updated_count, skipped_count = 0, 0, 0
 
     for tx in transactions:
         try:
-            account_id = tx.get("account_id", None)  # Allow NULL account_id
-            transaction_date = tx.get("date") or tx.get("authorized_date")  # Ensure date is set
-            transaction_name = tx.get("name", "Unknown")  # Ensure name is set
-            merchant_name = tx.get("merchant_name", "N/A")  # Ensure merchant_name is set
-
-            # ✅ Debugging Log: Show transaction data before inserting/updating
-            print(f"\n🔄 Processing transaction: {tx}")
+            account_id = tx.get("account_id")  
 
             # ✅ Prepare transaction data
             tx_data = {
@@ -131,39 +125,64 @@ def store_transactions(transactions):
                 "account_id": account_id,
                 "amount": tx["amount"],
                 "iso_currency_code": tx.get("iso_currency_code", "USD"),
-                "merchant_name": merchant_name,
-                "name": transaction_name,
-                "date": transaction_date,
-                "category": ", ".join(tx.get("category", [])) if tx.get("category") else "Uncategorized",
+                "merchant_name": tx.get("merchant_name"),
+                "category": ", ".join(tx.get("category", [])),
                 "plaid_category_id": tx.get("category_id"),
                 "pending": tx["pending"],
+                "date": tx["date"],  # ✅ Ensure date is included
+                "name": tx["name"],  # ✅ Ensure name is included
                 "location_address": tx["location"].get("address"),
                 "location_city": tx["location"].get("city"),
                 "location_region": tx["location"].get("region"),
                 "location_postal_code": tx["location"].get("postal_code"),
-                "location_country": tx.get("location", {}).get("country"),
-                "payment_channel": tx.get("payment_channel"),
-                "payment_method": tx.get("payment_meta", {}).get("payment_method"),
-                "website": tx.get("website"),
+                "location_country": tx["location"].get("country"),
             }
 
-            # ✅ Debugging Log: Show the final transaction data before inserting/updating
-            print(f"📝 Prepared transaction data for DB: {tx_data}")
+            # ✅ Check if transaction exists
+            existing_tx = (
+                supabase.table("transactions")
+                .select("pending", "name", "date")
+                .eq("transaction_id", tx["transaction_id"])
+                .execute()
+            )
 
-            # ✅ FORCE UPDATE: Insert or update all transactions (no skipping)
-            response = supabase.table("transactions").upsert(tx_data).execute()
+            if existing_tx.data:
+                existing_data = existing_tx.data[0]
 
-            if response.data:
-                updated_count += 1
-                print(f"✅ Inserted/Updated transaction: {tx['transaction_id']}")
+                if existing_data["pending"]:  
+                    # ✅ If transaction is still pending, update it
+                    supabase.table("transactions").update(tx_data).eq(
+                        "transaction_id", tx["transaction_id"]
+                    ).execute()
+                    updated_count += 1
+                    print(f"🔄 Updated pending transaction: {tx['transaction_id']}")
+
+                elif existing_data["pending"] and not tx["pending"]:  
+                    # ✅ If transaction was pending & is now posted, allow final update
+                    supabase.table("transactions").update({
+                        "pending": False,
+                        "name": tx["name"],  
+                        "date": tx["date"]
+                    }).eq("transaction_id", tx["transaction_id"]).execute()
+                    updated_count += 1
+                    print(f"✅ Final update for posted transaction: {tx['transaction_id']}")
+
+                else:
+                    # 🚫 If already posted, skip update
+                    print(f"🚫 Skipping update for already posted transaction: {tx['transaction_id']}")
+                    skipped_count += 1
+
             else:
-                print(f"❌ FAILED: No response from Supabase for {tx['transaction_id']}")
+                # ✅ Insert new transaction
+                supabase.table("transactions").insert(tx_data).execute()
+                inserted_count += 1
+                print(f"✅ Inserted new transaction: {tx['transaction_id']}")
 
         except Exception as e:
             print(f"❌ Error storing transaction {tx.get('transaction_id', 'Unknown')}: {str(e)}")
+            skipped_count += 1
 
-    print(f"\n📊 Transaction sync summary: {updated_count} transactions updated.")
-
+    print(f"\n📊 Transaction sync summary: {inserted_count} inserted, {updated_count} updated, {skipped_count} skipped")
 
 # -------------------------------------------
 # ✅ Main Function to Sync Plaid Data
