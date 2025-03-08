@@ -333,6 +333,8 @@ def update_transactions():
     except Exception as e:
         print("❌ General API error:", e)  # 🔥 Log general error
         return jsonify({"error": f"API failure: {str(e)}"}), 500
+
+
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
