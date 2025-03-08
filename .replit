@@ -37,7 +37,7 @@ author = 39547853
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python api.py"
+args = "python plaid_sync.py"
 
 [auth]
 pageEnabled = false

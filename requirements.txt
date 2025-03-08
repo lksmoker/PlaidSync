@@ -21,3 +21,5 @@ supabase
 supabase
 supabase
 supabase
+jq==1.8.0
+jque
