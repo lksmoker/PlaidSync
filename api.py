@@ -62,44 +62,37 @@ import uuid
 
 @app.route('/split-transaction', methods=['POST'])
 def split_transaction():
-            try:
-                data = request.json
-                transaction_id = data.get("transaction_id")
-                splits = data.get("splits", [])
+        try:
+            data = request.json
+            transaction_id = data.get("transaction_id")
+            splits = data.get("splits", [])
 
-                if not transaction_id or not splits:
-                    return jsonify({"error": "Missing transaction_id or splits"}), 400
+            if not transaction_id or not splits:
+                return jsonify({"error": "Missing transaction_id or splits data"}), 400
 
-                # ✅ Step 1: Mark the original transaction as 'split' (ignored)
-                supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
+            # ✅ Mark the original transaction as "split"
+            supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
 
-                # ✅ Step 2: Insert new split transactions
-                new_transactions = []
-                for split in splits:
-                    new_id = generate_new_id()  # 🔥 Generate new transaction ID
-                    new_txn = {
-                        "transaction_id": new_id,
-                        "amount": split["amount"],
-                        "user_category_id": split["category_id"],
-                        "user_subcategory_id": split.get("subcategory_id"),
-                        "date": split["date"],
-                        "name": split["name"],
-                        "account_id": split["account_id"],
-                        "parent_transaction_id": transaction_id,  # ✅ Link to original transaction
-                        "ignored": False
-                    }
-                    response = supabase.table("transactions").insert(new_txn).execute()
-                    new_transactions.append(response.data)
+            # ✅ Insert split transactions (ensuring ignored is FALSE)
+            new_splits = []
+            for split in splits:
+                new_splits.append({
+                    "transaction_id": str(uuid.uuid4()),  # Generate new unique ID
+                    "parent_transaction_id": transaction_id,  # Link to original
+                    "amount": split["amount"],
+                    "user_category_id": split["category_id"],
+                    "user_subcategory_id": split.get("subcategory_id"),
+                    "date": datetime.now().strftime("%Y-%m-%d"),  # Use current date
+                    "name": f"Split from {transaction_id}",
+                    "ignored": False,  # ✅ Ensure split transactions are active
+                })
 
-                return jsonify({"message": "Transaction successfully split", "new_transactions": new_transactions}), 201
+            supabase.table("transactions").insert(new_splits).execute()
 
-            except Exception as e:
-                return jsonify({"error": str(e)}), 500
+            return jsonify({"message": "Transaction split successfully!"}), 200
 
-
-        # ✅ Function to Generate a Unique Transaction ID
-def generate_new_id():
-            return str(uuid.uuid4())  # 🔥 Generates a random unique ID
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
         
 @app.route('/sync-plaid', methods=['POST'])
 def sync_plaid():
