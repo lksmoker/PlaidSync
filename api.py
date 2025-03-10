@@ -59,9 +59,8 @@ def home():
         }
     })
 
+from datetime import datetime
 import uuid
-
-from datetime import datetime  # ✅ Correct import
 
 @app.route('/split-transaction', methods=['POST'])
 def split_transaction():
@@ -73,28 +72,57 @@ def split_transaction():
         if not transaction_id or not splits:
             return jsonify({"error": "Missing transaction_id or splits data"}), 400
 
+        print(f"🔄 Splitting transaction: {transaction_id}")
+
+        # ✅ Fetch the original transaction to get `account_id` and `date`
+        original_txn_response = supabase.table("transactions") \
+            .select("account_id, date") \
+            .eq("transaction_id", transaction_id) \
+            .single() \
+            .execute()
+
+        if not original_txn_response.data:
+            return jsonify({"error": "Original transaction not found"}), 404
+
+        original_txn = original_txn_response.data
+        account_id = original_txn["account_id"]
+        original_date = original_txn["date"]
+
+        print(f"✅ Original transaction found - Account ID: {account_id}, Date: {original_date}")
+
         # ✅ Mark the original transaction as "split"
-        supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
+        update_response = supabase.table("transactions") \
+            .update({"ignored": "split"}) \
+            .eq("transaction_id", transaction_id) \
+            .execute()
+
+        print(f"✅ Original transaction updated: {update_response}")
 
         # ✅ Insert split transactions (ensuring ignored is FALSE)
         new_splits = []
         for split in splits:
+            new_transaction_id = str(uuid.uuid4())  # Generate new unique ID
             new_splits.append({
-                "transaction_id": str(uuid.uuid4()),  # Generate new unique ID
-                "parent_transaction_id": transaction_id,  # Link to original
+                "transaction_id": new_transaction_id,
+                "parent_transaction_id": transaction_id,  # ✅ Reference original transaction
+                "account_id": account_id,  # ✅ Copy account_id from original transaction
                 "amount": split["amount"],
                 "user_category_id": split["category_id"],
                 "user_subcategory_id": split.get("subcategory_id"),
-                "date": datetime.now().strftime("%Y-%m-%d"),  # ✅ Fixed datetime usage
+                "date": original_date,  # ✅ Use original transaction date
                 "name": f"Split from {transaction_id}",
                 "ignored": False,  # ✅ Ensure split transactions are active
             })
+            print(f"🆕 Created split transaction: {new_transaction_id}")
 
-        supabase.table("transactions").insert(new_splits).execute()
+        insert_response = supabase.table("transactions").insert(new_splits).execute()
+
+        print(f"✅ Inserted new split transactions: {insert_response}")
 
         return jsonify({"message": "Transaction split successfully!"}), 200
 
     except Exception as e:
+        print(f"❌ Error in split_transaction: {e}")  # Log error
         return jsonify({"error": str(e)}), 500
 
 
