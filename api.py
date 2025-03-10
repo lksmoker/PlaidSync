@@ -3,7 +3,7 @@ from flask_cors import CORS
 from supabase import create_client, Client
 import os
 import subprocess
-import datetime
+from datetime import datetime  # ✅ Correct import
 
 # Create Flask app
 app = Flask(__name__)
@@ -61,58 +61,39 @@ def home():
 
 import uuid
 
+from datetime import datetime  # ✅ Correct import
+
 @app.route('/split-transaction', methods=['POST'])
 def split_transaction():
-        try:
-            data = request.json
-            transaction_id = data.get("transaction_id")
-            splits = data.get("splits", [])
-
-            if not transaction_id or not splits:
-                return jsonify({"error": "Missing transaction_id or splits data"}), 400
-
-            # ✅ Mark the original transaction as "split"
-            supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
-
-            # ✅ Insert split transactions (ensuring ignored is FALSE)
-            new_splits = []
-            for split in splits:
-                new_splits.append({
-                    "transaction_id": str(uuid.uuid4()),  # Generate new unique ID
-                    "parent_transaction_id": transaction_id,  # Link to original
-                    "amount": split["amount"],
-                    "user_category_id": split["category_id"],
-                    "user_subcategory_id": split.get("subcategory_id"),
-                    "date": datetime.now().strftime("%Y-%m-%d"),  # Use current date
-                    "name": f"Split from {transaction_id}",
-                    "ignored": False,  # ✅ Ensure split transactions are active
-                })
-
-            supabase.table("transactions").insert(new_splits).execute()
-
-            return jsonify({"message": "Transaction split successfully!"}), 200
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-        
-@app.route('/sync-plaid', methods=['POST'])
-def sync_plaid():
-    """Trigger plaid_sync.py manually."""
     try:
-        result = subprocess.run(["python3", "plaid_sync.py"],
-                                capture_output=True,
-                                text=True)
+        data = request.json
+        transaction_id = data.get("transaction_id")
+        splits = data.get("splits", [])
 
-        if result.returncode == 0:
-            return jsonify({
-                "message": "Plaid sync successful",
-                "output": result.stdout
-            }), 200
-        else:
-            return jsonify({
-                "error": "Plaid sync failed",
-                "output": result.stderr
-            }), 500
+        if not transaction_id or not splits:
+            return jsonify({"error": "Missing transaction_id or splits data"}), 400
+
+        # ✅ Mark the original transaction as "split"
+        supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
+
+        # ✅ Insert split transactions (ensuring ignored is FALSE)
+        new_splits = []
+        for split in splits:
+            new_splits.append({
+                "transaction_id": str(uuid.uuid4()),  # Generate new unique ID
+                "parent_transaction_id": transaction_id,  # Link to original
+                "amount": split["amount"],
+                "user_category_id": split["category_id"],
+                "user_subcategory_id": split.get("subcategory_id"),
+                "date": datetime.now().strftime("%Y-%m-%d"),  # ✅ Fixed datetime usage
+                "name": f"Split from {transaction_id}",
+                "ignored": False,  # ✅ Ensure split transactions are active
+            })
+
+        supabase.table("transactions").insert(new_splits).execute()
+
+        return jsonify({"message": "Transaction split successfully!"}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
