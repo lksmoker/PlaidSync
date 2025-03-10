@@ -103,15 +103,14 @@ def split_transaction():
         for split in splits:
             new_transaction_id = str(uuid.uuid4())  # Generate new unique ID
             new_splits.append({
-                "transaction_id": new_transaction_id,
-                "parent_transaction_id": transaction_id,  # ✅ Reference original transaction
-                "account_id": account_id,  # ✅ Copy account_id from original transaction
+                "transaction_id": str(uuid.uuid4()),  
+                "parent_transaction_id": transaction_id,  
                 "amount": split["amount"],
                 "user_category_id": split["category_id"],
                 "user_subcategory_id": split.get("subcategory_id"),
-                "date": original_date,  # ✅ Use original transaction date
-                "name": f"Split from {transaction_id}",
-                "ignored": False,  # ✅ Ensure split transactions are active
+                "date": original_transaction["date"],  # ✅ Preserve original transaction date
+                "name": f"Split - {original_transaction['name']} ({original_transaction['date']})",  # ✅ More descriptive name
+                "ignored": False,
             })
             print(f"🆕 Created split transaction: {new_transaction_id}")
 
