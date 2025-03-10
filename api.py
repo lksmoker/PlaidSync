@@ -79,8 +79,12 @@ def split_transaction():
 
         original_transaction = response.data[0]  # ✅ Now we have the original transaction
 
-        # ✅ Mark the original transaction as "split"
-        supabase.table("transactions").update({"ignored": "split"}).eq("transaction_id", transaction_id).execute()
+        # ✅ Mark the original transaction as "split" and clear its categories
+        supabase.table("transactions").update({
+            "ignored": "split",
+            "user_category_id": None,
+            "user_subcategory_id": None
+        }).eq("transaction_id", transaction_id).execute()
 
         # ✅ Insert split transactions (ensuring ignored is FALSE)
         new_splits = []
