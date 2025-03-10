@@ -228,13 +228,18 @@ def get_unprocessed_transactions():
         if supabase is None:
             return jsonify({"error": "Supabase client not initialized"}), 500
 
-        transactions = supabase.table('transactions').select('*').eq(
-            'ignored', False).is_('user_category_id', None).execute()
+        transactions = (
+            supabase.table("transactions")
+            .select("*")
+            .neq("ignored", True)  # ✅ Exclude only transactions where ignored is explicitly True
+            .is_("user_category_id", None)  # ✅ Keep this to only show uncategorized transactions
+            .execute()
+        )
+
         return jsonify(transactions.data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
+        
 # Route to add a new category
 @app.route('/categories', methods=['POST'])
 def add_category():
