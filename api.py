@@ -213,8 +213,8 @@ def get_unprocessed_transactions():
         transactions = (
             supabase.table("transactions")
             .select("*")
-            .neq("ignored", True)  # ✅ Exclude only transactions where ignored is explicitly True
-            .is_("user_category_id", None)  # ✅ Keep this to only show uncategorized transactions
+            .not_("ignored", "in", ["true", "split"])  # ✅ Exclude both "true" and "split"
+            .is_("user_category_id", None)  # ✅ Only uncategorized transactions
             .execute()
         )
 
