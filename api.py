@@ -206,21 +206,22 @@ def get_processed_transactions():
 # Route to get all unprocessed transactions
 @app.route('/unprocessed-transactions', methods=['GET'])
 def get_unprocessed_transactions():
-    try:
-        if supabase is None:
-            return jsonify({"error": "Supabase client not initialized"}), 500
+            try:
+                if supabase is None:
+                    return jsonify({"error": "Supabase client not initialized"}), 500
 
-        transactions = (
-            supabase.table("transactions")
-            .select("*")
-            .not_("ignored", "in", ["true", "split"])  # ✅ Exclude both "true" and "split"
-            .is_("user_category_id", None)  # ✅ Only uncategorized transactions
-            .execute()
-        )
+                transactions = (
+                    supabase.table("transactions")
+                    .select("*")
+                    .neq("ignored", "true")  # ✅ Exclude ignored = "true"
+                    .neq("ignored", "split")  # ✅ Exclude ignored = "split"
+                    .is_("user_category_id", None)  # ✅ Only show uncategorized transactions
+                    .execute()
+                )
 
-        return jsonify(transactions.data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+                return jsonify(transactions.data)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
         
 # Route to add a new category
 @app.route('/categories', methods=['POST'])
