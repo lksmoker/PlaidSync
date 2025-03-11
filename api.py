@@ -113,8 +113,8 @@ def setup_page():
     """Render the setup page for managing categories."""
     return render_template('setup.html')
 
-app.route('/manual-add', methods=['POST'])
-def update_transactions():
+@app.route('/manual-add', methods=['POST'])
+def add_manual_transaction():  # ✅ Renamed function
     try:
         if supabase is None:
             return jsonify({"error": "Supabase client not initialized"}), 500
@@ -136,7 +136,7 @@ def update_transactions():
                 category_id = transaction_data.get("user_category_id")
                 subcategory_id = transaction_data.get("user_subcategory_id")
                 amount = float(transaction_data.get("amount", 0))  # ✅ Ensure float
-                ignored = str(transaction_data.get("ignored", "false"))  # ✅ Ensure text
+                ignored = bool(transaction_data.get("ignored", False))  # ✅ Convert to boolean
                 date = str(transaction_data.get("date"))  # ✅ Ensure string
                 name = str(transaction_data.get("name"))  # ✅ Ensure string
 
@@ -150,7 +150,7 @@ def update_transactions():
                     "user_category_id": int(category_id) if category_id is not None else None,  # ✅ Ensure integer
                     "user_subcategory_id": int(subcategory_id) if subcategory_id is not None else None,  # ✅ Ensure integer
                     "account_id": account_id,
-                    "ignored": ignored  # ✅ Ensure text format
+                    "ignored": ignored  # ✅ Boolean instead of string
                 }
 
                 print("📤 Sending to Supabase:", transaction_insert)  # ✅ Log before insert
@@ -170,7 +170,7 @@ def update_transactions():
                 print("❌ ERROR inserting transaction:", str(e))  # 🔥 Log exact error
                 return jsonify({"error": f"Failed to insert transaction: {str(e)}"}), 500
 
-        return jsonify({"message": "Transactions updated successfully", "results": results}), 200
+        return jsonify({"message": "Transaction added successfully", "results": results}), 200
 
     except Exception as e:
         print("❌ GENERAL API ERROR:", str(e))  
