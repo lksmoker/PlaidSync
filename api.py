@@ -113,6 +113,68 @@ def setup_page():
     """Render the setup page for managing categories."""
     return render_template('setup.html')
 
+app.route('/manual-add', methods=['POST'])
+def update_transactions():
+    try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
+        data = request.json
+        print("🔍 Received data:", data)  # ✅ Log request payload
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        if isinstance(data, dict):
+            data = [data]  # Ensure list format
+
+        results = []
+        for transaction_data in data:
+            try:
+                transaction_id = str(transaction_data.get("transaction_id"))  # ✅ Ensure string
+                account_id = str(transaction_data.get("account_id", "cash"))  # ✅ Ensure string
+                category_id = transaction_data.get("user_category_id")
+                subcategory_id = transaction_data.get("user_subcategory_id")
+                amount = float(transaction_data.get("amount", 0))  # ✅ Ensure float
+                ignored = str(transaction_data.get("ignored", "false"))  # ✅ Ensure text
+                date = str(transaction_data.get("date"))  # ✅ Ensure string
+                name = str(transaction_data.get("name"))  # ✅ Ensure string
+
+                print(f"🛠 Processing: transaction_id={transaction_id}, amount={amount}, category_id={category_id}, subcategory_id={subcategory_id}, account_id={account_id}, ignored={ignored}")
+
+                transaction_insert = {
+                    "transaction_id": transaction_id,
+                    "amount": amount,
+                    "date": date,
+                    "name": name,
+                    "user_category_id": int(category_id) if category_id is not None else None,  # ✅ Ensure integer
+                    "user_subcategory_id": int(subcategory_id) if subcategory_id is not None else None,  # ✅ Ensure integer
+                    "account_id": account_id,
+                    "ignored": ignored  # ✅ Ensure text format
+                }
+
+                print("📤 Sending to Supabase:", transaction_insert)  # ✅ Log before insert
+
+                transaction = (
+                    supabase
+                    .table("transactions")
+                    .insert(transaction_insert)
+                    .execute()
+                )
+
+                print("✅ Insert response:", transaction.data)  # ✅ Log success
+
+                results.append(transaction.data)
+
+            except Exception as e:
+                print("❌ ERROR inserting transaction:", str(e))  # 🔥 Log exact error
+                return jsonify({"error": f"Failed to insert transaction: {str(e)}"}), 500
+
+        return jsonify({"message": "Transactions updated successfully", "results": results}), 200
+
+    except Exception as e:
+        print("❌ GENERAL API ERROR:", str(e))  
+        return jsonify({"error": f"API failure: {str(e)}"}), 500
 
 @app.route('/review')
 def review_page():
@@ -308,66 +370,60 @@ def confirm_duplicate():
 
 @app.route('/update-transactions', methods=['POST'])
 def update_transactions():
-    try:
-        if supabase is None:
-            return jsonify({"error": "Supabase client not initialized"}), 500
-
-        data = request.json
-        print("🔍 Received data:", data)  # ✅ Log request payload
-
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        if isinstance(data, dict):
-            data = [data]  # Ensure list format
-
-        results = []
-        for transaction_data in data:
             try:
-                transaction_id = str(transaction_data.get("transaction_id"))  # ✅ Ensure string
-                account_id = str(transaction_data.get("account_id", "cash"))  # ✅ Ensure string
-                category_id = transaction_data.get("user_category_id")
-                subcategory_id = transaction_data.get("user_subcategory_id")
-                amount = float(transaction_data.get("amount", 0))  # ✅ Ensure float
-                ignored = str(transaction_data.get("ignored", "false"))  # ✅ Ensure text
-                date = str(transaction_data.get("date"))  # ✅ Ensure string
-                name = str(transaction_data.get("name"))  # ✅ Ensure string
+                if supabase is None:
+                    return jsonify({"error": "Supabase client not initialized"}), 500
 
-                print(f"🛠 Processing: transaction_id={transaction_id}, amount={amount}, category_id={category_id}, subcategory_id={subcategory_id}, account_id={account_id}, ignored={ignored}")
+                data = request.json
+                print("🔍 Received data:", data)  # ✅ Log request payload
 
-                transaction_insert = {
-                    "transaction_id": transaction_id,
-                    "amount": amount,
-                    "date": date,
-                    "name": name,
-                    "user_category_id": int(category_id) if category_id is not None else None,  # ✅ Ensure integer
-                    "user_subcategory_id": int(subcategory_id) if subcategory_id is not None else None,  # ✅ Ensure integer
-                    "account_id": account_id,
-                    "ignored": ignored  # ✅ Ensure text format
-                }
+                if not data:
+                    return jsonify({"error": "No data provided"}), 400
 
-                print("📤 Sending to Supabase:", transaction_insert)  # ✅ Log before insert
+                if isinstance(data, dict):
+                    data = [data]  # Ensure list format
 
-                transaction = (
-                    supabase
-                    .table("transactions")
-                    .insert(transaction_insert)
-                    .execute()
-                )
+                results = []
+                for transaction_data in data:
+                    try:
+                        transaction_id = str(transaction_data.get("transaction_id"))  # ✅ Ensure string
+                        category_id = transaction_data.get("user_category_id")
+                        subcategory_id = transaction_data.get("user_subcategory_id")
+                        ignored = transaction_data.get("ignored")  # ✅ Directly use ignored value
 
-                print("✅ Insert response:", transaction.data)  # ✅ Log success
+                        print(f"🛠 Updating: transaction_id={transaction_id}, category_id={category_id}, subcategory_id={subcategory_id}, ignored={ignored}")
 
-                results.append(transaction.data)
+                        # ✅ Use .update() instead of .insert()
+                        transaction_update = {
+                            "user_category_id": int(category_id) if category_id is not None else None,
+                            "user_subcategory_id": int(subcategory_id) if subcategory_id is not None else None,
+                            "ignored": ignored  # ✅ Update ignored field
+                        }
+
+                        print("📤 Sending update to Supabase:", transaction_update)  # ✅ Log before update
+
+                        transaction = (
+                            supabase
+                            .table("transactions")
+                            .update(transaction_update)
+                            .eq("transaction_id", transaction_id)  # ✅ Find transaction by ID
+                            .execute()
+                        )
+
+                        print("✅ Update response:", transaction.data)  # ✅ Log success
+
+                        results.append(transaction.data)
+
+                    except Exception as e:
+                        print("❌ ERROR updating transaction:", str(e))  # 🔥 Log exact error
+                        return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
+
+                return jsonify({"message": "Transactions updated successfully", "results": results}), 200
 
             except Exception as e:
-                print("❌ ERROR inserting transaction:", str(e))  # 🔥 Log exact error
-                return jsonify({"error": f"Failed to insert transaction: {str(e)}"}), 500
-
-        return jsonify({"message": "Transactions updated successfully", "results": results}), 200
-
-    except Exception as e:
-        print("❌ GENERAL API ERROR:", str(e))  
-        return jsonify({"error": f"API failure: {str(e)}"}), 500
+                print("❌ GENERAL API ERROR:", str(e))  
+                return jsonify({"error": f"API failure: {str(e)}"}), 500
+                
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
