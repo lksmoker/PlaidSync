@@ -312,88 +312,61 @@ def update_transactions():
             return jsonify({"error": "Supabase client not initialized"}), 500
 
         data = request.json
+        print("🔍 Received data:", data)  # ✅ Log request payload
+
         if not data:
-            print("❌ No data received in request.")  
             return jsonify({"error": "No data provided"}), 400
 
         if isinstance(data, dict):
-            data = [data]  # Ensure it's always a list
-
-        print("🔍 Received transaction update request:", data)  
+            data = [data]  # Ensure list format
 
         results = []
         for transaction_data in data:
             try:
-                transaction_id = transaction_data.get("transaction_id")
-                if not transaction_id:
-                    print("⚠️ Missing transaction_id:", transaction_data)
-                    continue  
+                transaction_id = str(transaction_data.get("transaction_id"))  # ✅ Ensure string
+                account_id = str(transaction_data.get("account_id", "cash"))  # ✅ Ensure string
+                category_id = transaction_data.get("user_category_id")
+                subcategory_id = transaction_data.get("user_subcategory_id")
+                amount = float(transaction_data.get("amount", 0))  # ✅ Ensure float
+                ignored = str(transaction_data.get("ignored", "false"))  # ✅ Ensure text
+                date = str(transaction_data.get("date"))  # ✅ Ensure string
+                name = str(transaction_data.get("name"))  # ✅ Ensure string
 
-                print("🛠 Processing transaction:", transaction_data)  
+                print(f"🛠 Processing: transaction_id={transaction_id}, amount={amount}, category_id={category_id}, subcategory_id={subcategory_id}, account_id={account_id}, ignored={ignored}")
 
-                # 🔎 Check if the transaction exists
-                existing_transaction = (
+                transaction_insert = {
+                    "transaction_id": transaction_id,
+                    "amount": amount,
+                    "date": date,
+                    "name": name,
+                    "user_category_id": int(category_id) if category_id is not None else None,  # ✅ Ensure integer
+                    "user_subcategory_id": int(subcategory_id) if subcategory_id is not None else None,  # ✅ Ensure integer
+                    "account_id": account_id,
+                    "ignored": ignored  # ✅ Ensure text format
+                }
+
+                print("📤 Sending to Supabase:", transaction_insert)  # ✅ Log before insert
+
+                transaction = (
                     supabase
                     .table("transactions")
-                    .select("transaction_id")
-                    .eq("transaction_id", transaction_id)
+                    .insert(transaction_insert)
                     .execute()
                 )
 
-                if existing_transaction.data:
-                    # ✅ Transaction exists → UPDATE
-                    print(f"🔄 Updating transaction {transaction_id}")
-                    transaction_update = {
-                        key: transaction_data[key]
-                        for key in ["date", "name", "user_category_id", "user_subcategory_id", "ignored", "amount"]
-                        if key in transaction_data
-                    }
-
-                    transaction = (
-                        supabase
-                        .table("transactions")
-                        .update(transaction_update)
-                        .eq("transaction_id", transaction_id)
-                        .execute()
-                    )
-
-                    print("📝 Update response:", transaction.data)  
-
-                else:
-                    # 🚀 New transaction → INSERT
-                    print(f"🆕 Inserting new transaction {transaction_id}")
-                    transaction_insert = {
-                        "transaction_id": transaction_id,
-                        "amount": transaction_data["amount"],
-                        "date": transaction_data["date"],
-                        "name": transaction_data["name"],
-                        "user_category_id": transaction_data["user_category_id"],
-                        "user_subcategory_id": transaction_data["user_subcategory_id"],
-                    }
-
-                    transaction = (
-                        supabase
-                        .table("transactions")
-                        .insert(transaction_insert)
-                        .execute()
-                    )
-
-                    print("📝 Insert response:", transaction.data)  
+                print("✅ Insert response:", transaction.data)  # ✅ Log success
 
                 results.append(transaction.data)
 
             except Exception as e:
-                print("❌ Error updating transaction:", e)  
-                return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
+                print("❌ ERROR inserting transaction:", str(e))  # 🔥 Log exact error
+                return jsonify({"error": f"Failed to insert transaction: {str(e)}"}), 500
 
-        print("✅ Final response:", results)  
         return jsonify({"message": "Transactions updated successfully", "results": results}), 200
 
     except Exception as e:
-        print("❌ General API error:", e)  
+        print("❌ GENERAL API ERROR:", str(e))  
         return jsonify({"error": f"API failure: {str(e)}"}), 500
-
-
 # Route to get potential duplicate transaction pairs
 @app.route('/duplicate-pairs', methods=['GET'])
 def get_duplicate_pairs():
