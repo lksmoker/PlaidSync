@@ -313,10 +313,13 @@ def update_transactions():
 
         data = request.json
         if not data:
-            print("❌ No data received in request.")  # 🔥 Debugging log
+            print("❌ No data received in request.")  
             return jsonify({"error": "No data provided"}), 400
 
-        print("🔍 Received transaction update request:", data)  # ✅ Log received data
+        if isinstance(data, dict):
+            data = [data]  # Ensure it's always a list
+
+        print("🔍 Received transaction update request:", data)  
 
         results = []
         for transaction_data in data:
@@ -324,46 +327,70 @@ def update_transactions():
                 transaction_id = transaction_data.get("transaction_id")
                 if not transaction_id:
                     print("⚠️ Missing transaction_id:", transaction_data)
-                    continue  # Skip this transaction
+                    continue  
 
-                print("🛠 Processing transaction:", transaction_data)  # ✅ Log each transaction
+                print("🛠 Processing transaction:", transaction_data)  
 
-                # Only include fields that are provided in the update request
-                transaction_update = {}
-                if "date" in transaction_data:
-                    transaction_update["date"] = transaction_data["date"]
-                if "name" in transaction_data:
-                    transaction_update["name"] = transaction_data["name"]
-                if "user_category_id" in transaction_data:
-                    transaction_update["user_category_id"] = int(transaction_data["user_category_id"]) if transaction_data["user_category_id"] is not None else None
-                if "user_subcategory_id" in transaction_data:
-                    transaction_update["user_subcategory_id"] = int(transaction_data["user_subcategory_id"]) if transaction_data["user_subcategory_id"] is not None else None
-                if "ignored" in transaction_data:
-                    transaction_update["ignored"] = bool(transaction_data["ignored"])
-
-                if not transaction_update:
-                    print(f"⚠️ No valid fields to update for transaction {transaction_id}")
-                    continue  # Skip empty updates
-
-                print("📝 Sending to Supabase:", transaction_update)  # ✅ Log before sending to Supabase
-                transaction = (
+                # 🔎 Check if the transaction exists
+                existing_transaction = (
                     supabase
-                    .table('transactions')
-                    .update(transaction_update)
-                    .eq('transaction_id', transaction_id)  # 🔥 Correct filtering method
+                    .table("transactions")
+                    .select("transaction_id")
+                    .eq("transaction_id", transaction_id)
                     .execute()
                 )
+
+                if existing_transaction.data:
+                    # ✅ Transaction exists → UPDATE
+                    print(f"🔄 Updating transaction {transaction_id}")
+                    transaction_update = {
+                        key: transaction_data[key]
+                        for key in ["date", "name", "user_category_id", "user_subcategory_id", "ignored", "amount"]
+                        if key in transaction_data
+                    }
+
+                    transaction = (
+                        supabase
+                        .table("transactions")
+                        .update(transaction_update)
+                        .eq("transaction_id", transaction_id)
+                        .execute()
+                    )
+
+                    print("📝 Update response:", transaction.data)  
+
+                else:
+                    # 🚀 New transaction → INSERT
+                    print(f"🆕 Inserting new transaction {transaction_id}")
+                    transaction_insert = {
+                        "transaction_id": transaction_id,
+                        "amount": transaction_data["amount"],
+                        "date": transaction_data["date"],
+                        "name": transaction_data["name"],
+                        "user_category_id": transaction_data["user_category_id"],
+                        "user_subcategory_id": transaction_data["user_subcategory_id"],
+                    }
+
+                    transaction = (
+                        supabase
+                        .table("transactions")
+                        .insert(transaction_insert)
+                        .execute()
+                    )
+
+                    print("📝 Insert response:", transaction.data)  
 
                 results.append(transaction.data)
 
             except Exception as e:
-                print("❌ Error updating transaction:", e)  # 🔥 Log specific error
+                print("❌ Error updating transaction:", e)  
                 return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
 
+        print("✅ Final response:", results)  
         return jsonify({"message": "Transactions updated successfully", "results": results}), 200
 
     except Exception as e:
-        print("❌ General API error:", e)  # 🔥 Log general error
+        print("❌ General API error:", e)  
         return jsonify({"error": f"API failure: {str(e)}"}), 500
 
 
