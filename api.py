@@ -69,22 +69,18 @@ def get_budgets():
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
-        if month is None or year is None:
-            print("❌ Month and year are required")
-            return jsonify({"error": "Month and year are required"}), 400
+        print(f"🔍 Received Params -> month: {month}, year: {year}")
 
-        print(f"🔍 Fetching budgets for Month: {month}, Year: {year}")  # Debug log
+        query = supabase.table("budgets").select("*")
 
-        response = (
-            supabase
-            .table("budgets")
-            .select("*")  # Fetch all columns (simplified to debug)
-            .eq("month", month)
-            .eq("year", year)
-            .execute()
-        )
+        if month is not None:
+            query = query.eq("month", month)
+        if year is not None:
+            query = query.eq("year", year)
 
-        print("🔍 Supabase Query Result:", response.data)  # Log database response
+        response = query.execute()
+
+        print("🔍 Supabase Query Result:", response.data)  # Log response
 
         return jsonify(response.data or []), 200
 
