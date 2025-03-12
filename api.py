@@ -63,32 +63,33 @@ def home():
 from datetime import datetime
 import uuid
 
-
 @app.route('/budgets', methods=['GET'])
 def get_budgets():
     try:
-        # Debugging: Print received query parameters
-        print("🔍 Query Parameters:", request.args)
-
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
         if month is None or year is None:
+            print("❌ Month and year are required")
             return jsonify({"error": "Month and year are required"}), 400
 
-        # Supabase Query
-        response = (supabase.table("budgets").select(
-            "*, categories(name, parent_id)").eq("month",
-                                                 month).eq("year",
-                                                           year).execute())
+        print(f"🔍 Fetching budgets for Month: {month}, Year: {year}")  # Debug log
 
-        # Debugging: Print response from Supabase
-        print("🔍 Supabase Response:", response.data)
+        response = (
+            supabase
+            .table("budgets")
+            .select("*")  # Fetch all columns (simplified to debug)
+            .eq("month", month)
+            .eq("year", year)
+            .execute()
+        )
+
+        print("🔍 Supabase Query Result:", response.data)  # Log database response
 
         return jsonify(response.data or []), 200
 
     except Exception as e:
-        print("❌ API Error:", str(e))  # Print error to logs
+        print("❌ API Error:", str(e))
         return jsonify({"error": str(e)}), 500
 
 
