@@ -62,6 +62,30 @@ def home():
 from datetime import datetime
 import uuid
 
+@app.route('/budgets', methods=['GET'])
+def get_budgets():
+    try:
+        month = request.args.get("month", type=int)
+        year = request.args.get("year", type=int)
+
+        if not month or not year:
+            return jsonify({"error": "Month and year are required"}), 400
+
+        query = """
+            SELECT b.*, c.name AS category_name, c.parent_id AS parent_category
+            FROM budgets b
+            LEFT JOIN categories c ON b.category_id = c.id
+            WHERE b.month = %s AND b.year = %s
+            ORDER BY c.parent_id NULLS FIRST, c.name;
+        """
+
+        result = supabase.execute(query, (month, year)).fetchall()
+
+        return jsonify([dict(row) for row in result])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/split-transaction', methods=['POST'])
 def split_transaction():
     try:
