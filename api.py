@@ -10,22 +10,23 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Initialize Supabase client
+    # Initialize Supabase client with Service Role Key
 supabase_url = os.getenv("SUPABASE_URL")  # Fetch from environment variables
-supabase_key = os.getenv("SUPABASE_KEY")  # Fetch from environment variables
+supabase_key = os.getenv("SUPABASE_SERVICE_ROLE")  # ✅ Use the service role key
 
-# Check if environment variables are set
+    # Check if environment variables are set
 if not supabase_url or not supabase_key:
-    print(
-        "⚠️ Warning: SUPABASE_URL or SUPABASE_KEY environment variables not set."
-    )
-    print("Please set these in your Replit Secrets.")
+        print("⚠️ Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE environment variables not set.")
+        print("Please set these in your Render Secrets.")
 
-# Initialize Supabase client
+    # Initialize Supabase client
 try:
-    supabase = create_client(supabase_url, supabase_key)
+        supabase = create_client(supabase_url, supabase_key)
+        print("✅ Successfully connected to Supabase with Service Role Key.")
 except Exception as e:
-    print(f"Error connecting to Supabase: {str(e)}")
-    supabase = None
+        print(f"❌ Error connecting to Supabase: {str(e)}")
+        supabase = None
+
 
 
 # Route to check server status
