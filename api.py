@@ -10,23 +10,24 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Initialize Supabase client
-    # Initialize Supabase client with Service Role Key
+# Initialize Supabase client with Service Role Key
 supabase_url = os.getenv("SUPABASE_URL")  # Fetch from environment variables
 supabase_key = os.getenv("SUPABASE_SERVICE_ROLE")  # ✅ Use the service role key
 
-    # Check if environment variables are set
+# Check if environment variables are set
 if not supabase_url or not supabase_key:
-        print("⚠️ Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE environment variables not set.")
-        print("Please set these in your Render Secrets.")
+    print(
+        "⚠️ Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE environment variables not set."
+    )
+    print("Please set these in your Render Secrets.")
 
-    # Initialize Supabase client
+# Initialize Supabase client
 try:
-        supabase = create_client(supabase_url, supabase_key)
-        print("✅ Successfully connected to Supabase with Service Role Key.")
+    supabase = create_client(supabase_url, supabase_key)
+    print("✅ Successfully connected to Supabase with Service Role Key.")
 except Exception as e:
-        print(f"❌ Error connecting to Supabase: {str(e)}")
-        supabase = None
-
+    print(f"❌ Error connecting to Supabase: {str(e)}")
+    supabase = None
 
 
 # Route to check server status
@@ -64,6 +65,7 @@ def home():
 from datetime import datetime
 import uuid
 
+
 @app.route('/budgets', methods=['GET'])
 def get_budgets():
     try:
@@ -73,20 +75,30 @@ def get_budgets():
         if month is None or year is None:
             return jsonify({"error": "Month and year are required"}), 400
 
-        response = (
-            supabase
-            .table("budgets")
-            .select("*")
-            .eq("month", month)
-            .eq("year", year)
-            .execute()
-        )
+        # Get Regular Budget Categories (parent_id != 9)
+        regular_budgets = (
+            supabase.table("budgets").select(
+                "*, categories(parent_id, name)")  # ✅ Join with categories
+            .eq("month", month).eq("year",
+                                   year).neq("categories.parent_id",
+                                             9)  # ✅ Exclude Reserve categories
+            .execute())
 
-        return jsonify(response.data or []), 200
+        # Get Reserve Budgets (parent_id = 9)
+        reserve_budgets = (
+            supabase.table("budgets").select(
+                "*, categories(parent_id, name)").eq("month", month).eq(
+                    "year", year).eq("categories.parent_id",
+                                     9)  # ✅ Only Reserve categories
+            .execute())
+
+        return jsonify({
+            "regular_budgets": regular_budgets.data,
+            "reserve_budgets": reserve_budgets.data
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 @app.route('/split-transaction', methods=['POST'])
@@ -300,7 +312,12 @@ def get_categories():
         categories = response.data or []
 
         # Build a dictionary of categories for easy lookup
-        category_dict = {cat["id"]: {**cat, "subcategories": []} for cat in categories}
+        category_dict = {
+            cat["id"]: {
+                **cat, "subcategories": []
+            }
+            for cat in categories
+        }
 
         # Separate categories into Regular and Reserve
         reserve_categories = []
@@ -320,10 +337,14 @@ def get_categories():
                     parent["subcategories"].append(category_dict[cat["id"]])
 
         # Filter only top-level categories for Regular (non-Reserve)
-        structured_regular = [cat for cat in regular_categories if not cat.get("parent_id")]
+        structured_regular = [
+            cat for cat in regular_categories if not cat.get("parent_id")
+        ]
 
         # Reserve category structure (only the Reserve category and its subcategories)
-        structured_reserve = [cat for cat in reserve_categories if cat["id"] == 9]
+        structured_reserve = [
+            cat for cat in reserve_categories if cat["id"] == 9
+        ]
 
         return jsonify({
             "regular": structured_regular,
@@ -345,18 +366,14 @@ def get_budget_categories():
 
         # Get all category IDs that are in the budget table
         budgeted_categories = (
-            supabase
-            .table("budgets")
-            .select("category_id")
-            .eq("month", month)
-            .eq("year", year)
-            .execute()
-        )
+            supabase.table("budgets").select("category_id").eq(
+                "month", month).eq("year", year).execute())
 
         category_ids = [b["category_id"] for b in budgeted_categories.data]
 
         # Fetch only those categories
-        response = supabase.table("categories").select("*").in_("id", category_ids).execute()
+        response = supabase.table("categories").select("*").in_(
+            "id", category_ids).execute()
         return jsonify(response.data), 200
 
     except Exception as e:
