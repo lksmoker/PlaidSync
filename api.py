@@ -70,24 +70,23 @@ def get_budgets():
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
-        print(f"🔍 Received Params -> month: {month}, year: {year}")
+        if month is None or year is None:
+            return jsonify({"error": "Month and year are required"}), 400
 
-        query = supabase.table("budgets").select("*")
-
-        if month is not None:
-            query = query.eq("month", month)
-        if year is not None:
-            query = query.eq("year", year)
-
-        response = query.execute()
-
-        print("🔍 Supabase Query Result:", response.data)  # Log response
+        response = (
+            supabase
+            .table("budgets")
+            .select("*")
+            .eq("month", month)
+            .eq("year", year)
+            .execute()
+        )
 
         return jsonify(response.data or []), 200
 
     except Exception as e:
-        print("❌ API Error:", str(e))
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/split-transaction', methods=['POST'])
@@ -295,8 +294,71 @@ def get_categories():
     try:
         if supabase is None:
             return jsonify({"error": "Supabase client not initialized"}), 500
-        categories = supabase.table('categories').select('*').execute()
-        return jsonify(categories.data)
+
+        # Fetch all categories
+        response = supabase.table('categories').select("*").execute()
+        categories = response.data or []
+
+        # Build a dictionary of categories for easy lookup
+        category_dict = {cat["id"]: {**cat, "subcategories": []} for cat in categories}
+
+        # Separate categories into Regular and Reserve
+        reserve_categories = []
+        regular_categories = []
+
+        for cat in categories:
+            if cat.get("parent_id") == 9 or cat["id"] == 9:
+                reserve_categories.append(category_dict[cat["id"]])
+            else:
+                regular_categories.append(category_dict[cat["id"]])
+
+        # Assign subcategories to their parents
+        for cat in categories:
+            if cat.get("parent_id"):
+                parent = category_dict.get(cat["parent_id"])
+                if parent:
+                    parent["subcategories"].append(category_dict[cat["id"]])
+
+        # Filter only top-level categories for Regular (non-Reserve)
+        structured_regular = [cat for cat in regular_categories if not cat.get("parent_id")]
+
+        # Reserve category structure (only the Reserve category and its subcategories)
+        structured_reserve = [cat for cat in reserve_categories if cat["id"] == 9]
+
+        return jsonify({
+            "regular": structured_regular,
+            "reserve": structured_reserve
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/budget-categories', methods=['GET'])
+def get_budget_categories():
+    try:
+        month = request.args.get("month", type=int)
+        year = request.args.get("year", type=int)
+
+        if not month or not year:
+            return jsonify({"error": "Month and year required"}), 400
+
+        # Get all category IDs that are in the budget table
+        budgeted_categories = (
+            supabase
+            .table("budgets")
+            .select("category_id")
+            .eq("month", month)
+            .eq("year", year)
+            .execute()
+        )
+
+        category_ids = [b["category_id"] for b in budgeted_categories.data]
+
+        # Fetch only those categories
+        response = supabase.table("categories").select("*").in_("id", category_ids).execute()
+        return jsonify(response.data), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
