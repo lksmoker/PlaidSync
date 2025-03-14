@@ -1,16 +1,36 @@
 from flask import Blueprint, jsonify, request
-from supabase import Client
-import uuid
+from supabase import create_client, Client
+import os
 
+# Create Blueprint
 categories_blueprint = Blueprint("categories", __name__)
-supabase: Client = None  # This will be set in app.py and passed here
+
+# Initialize Supabase client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_SERVICE_ROLE")
+
+if not supabase_url or not supabase_key:
+    print("❌ ERROR: Missing Supabase URL or Service Role Key. Check your environment variables.")
+
+try:
+    supabase: Client = create_client(supabase_url, supabase_key)
+    print("✅ Supabase client initialized successfully.")
+except Exception as e:
+    print(f"❌ Supabase initialization failed: {e}")
+    supabase = None  # Prevent further errors
 
 @categories_blueprint.route("/categories", methods=["GET"])
 def get_categories():
     """Fetch all categories in a structured format."""
     try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
         response = supabase.table("categories").select("*").execute()
         categories = response.data or []
+
+        if not categories:
+            return jsonify({"message": "No categories found."}), 200
 
         category_dict = {cat["id"]: {**cat, "subcategories": []} for cat in categories}
 
@@ -44,6 +64,9 @@ def get_categories():
 def add_category():
     """Add a new category."""
     try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
         data = request.json
         if not data or "name" not in data:
             return jsonify({"error": "Missing required field: name"}), 400
@@ -62,6 +85,9 @@ def add_category():
 def update_category(id):
     """Update a category."""
     try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
         data = request.json
         if not data or "name" not in data:
             return jsonify({"error": "Missing required field: name"}), 400
@@ -80,6 +106,9 @@ def update_category(id):
 def delete_category(id):
     """Delete a category."""
     try:
+        if supabase is None:
+            return jsonify({"error": "Supabase client not initialized"}), 500
+
         response = supabase.table("categories").delete().eq("id", id).execute()
         return jsonify(response.data), 204
     except Exception as e:
