@@ -4,6 +4,7 @@ from supabase import create_client, Client
 import os
 import subprocess
 from datetime import datetime  # ✅ Correct import
+import uuid
 
 # Create Flask app
 app = Flask(__name__)
@@ -33,29 +34,71 @@ logs = []  # In-memory storage (Optional: Store in Supabase)
 
 
 @app.route('/logs', methods=['POST'])
-def capture_logs():
-    """Receives logs from the frontend and stores them."""
-    data = request.json
-    log_entry = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "message": data.get("message", "No message provided"),
-        "data": data.get("data", None)
-    }
+def insert_log():
+        """
+        Inserts a log entry into the logs table.
+        Expects JSON payload with: severity, message, service, page, endpoint, user_id, ip_address, request_data, response_data, stack_trace.
+        """
+        try:
+            data = request.json
+            new_log = {
+                "id": str(uuid.uuid4()),
+                "severity": data.get("severity", "INFO"),  # Default to INFO
+                "message": data["message"],  # Required
+                "service": data["service"],  # Required: 'Frontend', 'Backend', 'API', 'Supabase'
+                "page": data.get("page"),  # Optional: Which frontend page triggered this
+                "endpoint": data.get("endpoint"),  # Optional: API route (if relevant)
+                "user_id": data.get("user_id"),  # Optional: Stores user identifier
+                "ip_address": request.remote_addr,  # Auto-capture user IP
+                "request_data": data.get("request_data"),  # Optional: JSON payload
+                "response_data": data.get("response_data"),  # Optional: JSON response
+                "stack_trace": data.get("stack_trace"),  # Optional: For error debugging
+                "created_at": datetime.datetime.utcnow().isoformat()  # Auto-timestamp
+            }
 
-    logs.append(log_entry)  # Store logs (Optional: Push to Supabase)
+            response = supabase.table("logs").insert(new_log).execute()
+            return jsonify({"message": "Log added successfully!", "data": response.data}), 201
 
-    # Print to Render logs
-    print(
-        f"🔍 LOG: {log_entry['timestamp']} | {log_entry['message']} | {log_entry['data']}"
-    )
-
-    return jsonify({"status": "logged"}), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 
-@app.route('/logs', methods=['GET'])
-def get_logs():
-    """Returns stored logs for the frontend."""
-    return jsonify(logs[-10:]), 200  # ✅ Show only the last 10 logs
+    @app.route('/logs', methods=['GET'])
+    def get_logs():
+        """
+        Fetches logs from the logs table with optional filters.
+        Query params: severity, service, page, endpoint, start_date, end_date, limit.
+        """
+        try:
+            query = supabase.table("logs").select("*")
+
+            # Optional filters
+            severity = request.args.get("severity")
+            service = request.args.get("service")
+            page = request.args.get("page")
+            endpoint = request.args.get("endpoint")
+            start_date = request.args.get("start_date")  # Format: YYYY-MM-DD
+            end_date = request.args.get("end_date")  # Format: YYYY-MM-DD
+            limit = request.args.get("limit", 50, type=int)  # Default: 50 logs
+
+            if severity:
+                query = query.eq("severity", severity)
+            if service:
+                query = query.eq("service", service)
+            if page:
+                query = query.eq("page", page)
+            if endpoint:
+                query = query.eq("endpoint", endpoint)
+            if start_date and end_date:
+                query = query.gte("created_at", start_date).lte("created_at", end_date)
+
+            query = query.order("created_at", desc=True).limit(limit)
+
+            response = query.execute()
+            return jsonify(response.data), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 
 # Route to check server status
