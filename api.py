@@ -28,31 +28,35 @@ try:
 except Exception as e:
     print(f"❌ Error connecting to Supabase: {str(e)}")
     supabase = None
-from datetime import datetime
 
-logs = []  # Temporary in-memory storage (Optional: Use Supabase instead)
+logs = []  # In-memory storage (Optional: Store in Supabase)
+
 
 @app.route('/logs', methods=['POST'])
 def capture_logs():
-    """Receives logs from the frontend and stores them in memory or Supabase."""
+    """Receives logs from the frontend and stores them."""
     data = request.json
     log_entry = {
         "timestamp": datetime.utcnow().isoformat(),
         "message": data.get("message", "No message provided"),
-        "data": data.get("data")
+        "data": data.get("data", None)
     }
 
     logs.append(log_entry)  # Store logs (Optional: Push to Supabase)
 
     # Print to Render logs
-    print(f"🔍 LOG: {log_entry['timestamp']} | {log_entry['message']} | {log_entry['data']}")
+    print(
+        f"🔍 LOG: {log_entry['timestamp']} | {log_entry['message']} | {log_entry['data']}"
+    )
 
     return jsonify({"status": "logged"}), 200
 
+
 @app.route('/logs', methods=['GET'])
 def get_logs():
-    """Returns stored logs for the frontend logs page."""
-    return jsonify(logs), 200
+    """Returns stored logs for the frontend."""
+    return jsonify(logs[-10:]), 200  # ✅ Show only the last 10 logs
+
 
 # Route to check server status
 @app.route('/')
