@@ -1,32 +1,26 @@
-from flask import Flask
-from supabase import create_client
 import os
+from flask import Flask
+from flask_cors import CORS
+from supabase_client import supabase  # ✅ Import shared Supabase client
 
 def create_app():
     app = Flask(__name__)
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
-    # ✅ Initialize Supabase client
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")
+    if supabase is None:
+        print("❌ ERROR: Supabase client not initialized!")
 
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        print("❌ ERROR: Supabase credentials missing! Check environment variables.")
-        supabase = None
-    else:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print("✅ Supabase initialized successfully.")
+    # ✅ Import blueprints AFTER Supabase is set
+    from routes.accounts import accounts_blueprint
+    from routes.categories import categories_blueprint
+    from routes.transactions import transactions_blueprint
+    from routes.logs import logs_blueprint
 
-    # ✅ Import blueprints AFTER initializing Supabase
-    from routes.accounts import create_accounts_blueprint
-    from routes.categories import create_categories_blueprint
-    from routes.transactions import create_transactions_blueprint
-    from routes.logs import create_logs_blueprint
-
-    # ✅ Register Blueprints with Supabase Passed Explicitly
-    app.register_blueprint(create_accounts_blueprint(supabase))
-    app.register_blueprint(create_categories_blueprint(supabase))
-    app.register_blueprint(create_transactions_blueprint(supabase))
-    app.register_blueprint(create_logs_blueprint(supabase))
+    # ✅ Register Blueprints
+    app.register_blueprint(accounts_blueprint)
+    app.register_blueprint(categories_blueprint)
+    app.register_blueprint(transactions_blueprint)
+    app.register_blueprint(logs_blueprint)
 
     @app.route("/")
     def home():
