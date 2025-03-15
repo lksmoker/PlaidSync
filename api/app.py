@@ -17,19 +17,16 @@ def create_app():
         print("✅ Supabase initialized successfully.")
 
     # ✅ Import blueprints AFTER initializing Supabase
-    from routes.accounts import accounts_blueprint
-    from routes.categories import categories_blueprint
-    from routes.transactions import transactions_blueprint
+    from routes.accounts import create_accounts_blueprint
+    from routes.categories import create_categories_blueprint
+    from routes.transactions import create_transactions_blueprint
+    from routes.logs import create_logs_blueprint
 
-    # ✅ Pass Supabase instance to each blueprint
-    accounts_blueprint.supabase = supabase
-    categories_blueprint.supabase = supabase
-    transactions_blueprint.supabase = supabase
-
-    # ✅ Register Blueprints
-    app.register_blueprint(accounts_blueprint)
-    app.register_blueprint(categories_blueprint)
-    app.register_blueprint(transactions_blueprint)
+    # ✅ Register Blueprints with Supabase Passed Explicitly
+    app.register_blueprint(create_accounts_blueprint(supabase))
+    app.register_blueprint(create_categories_blueprint(supabase))
+    app.register_blueprint(create_transactions_blueprint(supabase))
+    app.register_blueprint(create_logs_blueprint(supabase))
 
     @app.route("/")
     def home():
