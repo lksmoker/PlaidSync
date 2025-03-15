@@ -1,28 +1,42 @@
 from flask import Flask
-from flask_cors import CORS
-from routes.logs import logs_blueprint
-from routes.transactions import transactions_blueprint
-from routes.budgets import budgets_blueprint
-from routes.categories import categories_blueprint
-from routes.duplicates import duplicates_blueprint
-from routes.accounts import accounts_blueprint
-from routes.setup import setup_blueprint
+from supabase import create_client
+import os
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+def create_app():
+    app = Flask(__name__)
 
-# Register Blueprints
-app.register_blueprint(logs_blueprint)
-app.register_blueprint(transactions_blueprint)
-app.register_blueprint(budgets_blueprint)
-app.register_blueprint(categories_blueprint)
-app.register_blueprint(duplicates_blueprint)
-app.register_blueprint(accounts_blueprint)
-app.register_blueprint(setup_blueprint)
+    # ✅ Initialize Supabase client
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")
 
-@app.route('/')
-def home():
-    return {"status": "API is running"}
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("❌ ERROR: Supabase credentials missing! Check environment variables.")
+        supabase = None
+    else:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("✅ Supabase initialized successfully.")
+
+    # ✅ Import blueprints AFTER initializing Supabase
+    from routes.accounts import accounts_blueprint
+    from routes.categories import categories_blueprint
+    from routes.transactions import transactions_blueprint
+
+    # ✅ Pass Supabase instance to each blueprint
+    accounts_blueprint.supabase = supabase
+    categories_blueprint.supabase = supabase
+    transactions_blueprint.supabase = supabase
+
+    # ✅ Register Blueprints
+    app.register_blueprint(accounts_blueprint)
+    app.register_blueprint(categories_blueprint)
+    app.register_blueprint(transactions_blueprint)
+
+    @app.route("/")
+    def home():
+        return {"status": "API is running"}
+
+    return app
 
 if __name__ == "__main__":
+    app = create_app()
     app.run(debug=True, host="0.0.0.0", port=8000)
