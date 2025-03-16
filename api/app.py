@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from supabase_client import supabase  # ✅ Import shared Supabase client
 
