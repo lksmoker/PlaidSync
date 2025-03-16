@@ -22,8 +22,7 @@ def get_unprocessed_transactions():
         response = (
             supabase.table("transactions")
             .select("*")
-            .is_("user_category_id", None)  # No category assigned
-            .eq("is_ignore", False)  # Not ignored
+            .or_("user_category_id.is.null,is_ignored.eq.false")
             .execute()
         )
 
@@ -41,7 +40,7 @@ def get_processed_transactions():
             supabase.table("transactions")
             .select("*")
             .or_(
-                "not.is(user_category_id, null),is_ignore.eq.true"  # Either categorized OR ignored
+                "not.is(user_category_id, null),is_ignored.eq.true"  # Either categorized OR ignored
             )
             .execute()
         )
