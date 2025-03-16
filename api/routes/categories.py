@@ -40,3 +40,21 @@ def delete_category(id):
         return jsonify(response.data), 204
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@categories_blueprint.route("/categories/main", methods=["GET"])
+def get_main_categories():
+    """Fetch only main categories (categories without a parent_id)."""
+    try:
+        response = supabase.table("categories").select("*").is_("parent_id", None).execute()
+        return jsonify(response.data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@categories_blueprint.route("/categories/sub/<int:main_category_id>", methods=["GET"])
+def get_subcategories(main_category_id):
+    """Fetch subcategories for a given main category."""
+    try:
+        response = supabase.table("categories").select("*").eq("parent_id", main_category_id).execute()
+        return jsonify(response.data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
