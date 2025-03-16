@@ -33,7 +33,7 @@ localPort = 10000
 externalPort = 3000
 
 [workflows]
-runButton = "Run API"
+runButton = "Kill & Restart app"
 
 [[workflows.workflow]]
 name = "Run API"
@@ -42,6 +42,23 @@ author = 39547853
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python plaid_sync.py"
+
+[[workflows.workflow]]
+name = "Kill & Restart app"
+mode = "sequential"
+author = 39547853
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd api"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f app.py"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python app.py"
 
 [auth]
 pageEnabled = false

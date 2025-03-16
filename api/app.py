@@ -22,6 +22,11 @@ def create_app():
     app.register_blueprint(transactions_blueprint)
     app.register_blueprint(logs_blueprint)
 
+    @app.route("/test-connection", methods=["GET"])
+    def test_connection():
+        return jsonify({"status": "API is running"}), 200
+
+    
     @app.route("/")
     def home():
         return {"status": "API is running"}
