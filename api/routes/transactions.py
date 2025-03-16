@@ -94,3 +94,33 @@ def delete_transaction(transaction_id):
         return jsonify({"message": "Transaction deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@transactions_blueprint.route("/update-transactions", methods=["POST"])
+def update_transactions():
+    """Update multiple transactions at once."""
+    try:
+        data = request.json.get("transactions", [])
+
+        if not data:
+            return jsonify({"error": "No transactions provided"}), 400
+
+        updates = []
+        for txn in data:
+            txn_id = txn["transaction_id"]
+            category_id = txn.get("user_category_id")
+            subcategory_id = txn.get("user_subcategory_id")
+
+            updates.append(
+                supabase.table("transactions")
+                .update({"user_category_id": category_id, "user_subcategory_id": subcategory_id})
+                .eq("transaction_id", txn_id)
+            )
+
+        # Execute all updates in bulk
+        for update in updates:
+            update.execute()
+
+        return jsonify({"success": True, "updated": len(updates)}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
