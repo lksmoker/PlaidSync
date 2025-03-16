@@ -5,7 +5,10 @@ from supabase_client import supabase  # ✅ Import shared Supabase client
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    CORS(app, resources={r"/*": {"origins": "*"}},
+         supports_credentials=True, 
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "OPTIONS", "PATCH", "DELETE"])
 
     if supabase is None:
         print("❌ ERROR: Supabase client not initialized!")
