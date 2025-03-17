@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from supabase_client import supabase
+from utils.logger import log_message  # ✅ Import the logger utility
 
 transactions_blueprint = Blueprint("transactions", __name__)
 
@@ -9,8 +10,10 @@ def get_transactions():
     """Fetch all transactions."""
     try:
         response = supabase.table("transactions").select("*").execute()
+        log_message("Fetched all transactions successfully", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 200
     except Exception as e:
+        log_message(f"Error fetching transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Fetch UNPROCESSED Transactions
@@ -25,8 +28,10 @@ def get_unprocessed_transactions():
             .eq("is_ignored", False)  # Not ignored
             .execute()
         )
+        log_message("Fetched unprocessed transactions successfully", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 200
     except Exception as e:
+        log_message(f"Error fetching unprocessed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Fetch PROCESSED Transactions
@@ -40,8 +45,10 @@ def get_processed_transactions():
             .or_("not.is(user_category_id, null),is_ignored.eq.true")
             .execute()
         )
+        log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 200
     except Exception as e:
+        log_message(f"Error fetching processed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Add a NEW Transaction
@@ -51,8 +58,10 @@ def add_transaction():
     try:
         data = request.json
         response = supabase.table("transactions").insert(data).execute()
+        log_message(f"Added new transaction: {data}", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 201
     except Exception as e:
+        log_message(f"Error adding transaction: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Update a Transaction
@@ -67,8 +76,10 @@ def update_transaction(transaction_id):
             .eq("transaction_id", transaction_id)
             .execute()
         )
+        log_message(f"Updated transaction {transaction_id}: {data}", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 200
     except Exception as e:
+        log_message(f"Error updating transaction {transaction_id}: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Delete a Transaction
@@ -82,8 +93,10 @@ def delete_transaction(transaction_id):
             .eq("transaction_id", transaction_id)
             .execute()
         )
+        log_message(f"Deleted transaction {transaction_id}", "INFO", "Backend", "Transactions Route")
         return jsonify({"message": "Transaction deleted successfully"}), 200
     except Exception as e:
+        log_message(f"Error deleting transaction {transaction_id}: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Update Multiple Transactions
@@ -112,8 +125,10 @@ def update_transactions():
         for update in updates:
             update.execute()
 
+        log_message(f"Updated {len(updates)} transactions", "INFO", "Backend", "Transactions Route")
         return jsonify({"success": True, "updated": len(updates)}), 200
     except Exception as e:
+        log_message(f"Error updating transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Split Transaction
@@ -168,6 +183,8 @@ def split_transaction():
             "is_split": True
         }).eq("transaction_id", original_transaction_id).execute()
 
+        log_message(f"Split transaction {original_transaction_id} into {len(splits)} parts", "INFO", "Backend", "Transactions Route")
         return jsonify({"message": "Transaction split successfully"}), 200
     except Exception as e:
+        log_message(f"Error splitting transaction {original_transaction_id}: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
