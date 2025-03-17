@@ -1,39 +1,35 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 from supabase_client import supabase
 
 budgets_blueprint = Blueprint("budgets", __name__)
 
 @budgets_blueprint.route("/budgets", methods=["GET"])
 def get_budgets():
-    """Retrieve budgeted amounts for a given month and year."""
+    """Fetch budgeted amounts for the given month and year, grouped by main and subcategories."""
     try:
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
         if not month or not year:
-            return jsonify({"error": "Month and year are required"}), 400
+            return jsonify({"error": "Missing required parameters: month and year"}), 400
 
-        response = (
-            supabase.table("budgets")
-            .select("category_id, categories(name), subcategory_id, subcategories(name), budgeted_amount")
-            .eq("month", month)
-            .eq("year", year)
-            .execute()
-        )
+        query = """
+            SELECT 
+                c.id AS category_id,
+                c.name AS category_name,
+                c.parent_id,
+                COALESCE(SUM(b.budgeted_amount), 0) AS total_budgeted,
+                COALESCE(SUM(b.adjusted_amount), 0) AS total_adjusted
+            FROM budgets b
+            LEFT JOIN categories c ON b.category_id = c.id
+            WHERE b.month = %s AND b.year = %s
+            GROUP BY c.id, c.name, c.parent_id
+            ORDER BY c.parent_id NULLS FIRST, c.id;
+        """
 
-        budgets = response.data
+        response = supabase.rpc("run_sql", {"sql": query, "params": [month, year]}).execute()
 
-        # Aggregate budgets per category
-        budget_summary = {}
-        for b in budgets:
-            category_name = b.get("subcategories", {}).get("name") or b.get("categories", {}).get("name") or "Unknown"
-            if category_name not in budget_summary:
-                budget_summary[category_name] = 0
-            budget_summary[category_name] += b["budgeted_amount"]
-
-        budget_list = [{"category_name": cat, "total_budgeted": total} for cat, total in budget_summary.items()]
-
-        return jsonify(budget_list), 200
+        return jsonify(response.data), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
