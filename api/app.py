@@ -34,6 +34,11 @@ def create_app():
     def home():
         return {"status": "API is running"}
 
+    @app.route("/list-routes", methods=["GET"])
+    def list_routes():
+        return jsonify([str(rule) for rule in app.url_map.iter_rules()])
+
+
     return app
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.mailutils
     pkgs.cacert
     pkgs.libffi
     pkgs.rustc
