@@ -13,22 +13,27 @@ def get_budgets():
         if not month or not year:
             return jsonify({"error": "Month and year are required"}), 400
 
-        query = """
-        SELECT 
-            b.category_id,
-            COALESCE(subcat.name, maincat.name) AS category_name,  -- Use subcategory name if available
-            SUM(b.budgeted_amount) AS total_budgeted
-        FROM budgets b
-        LEFT JOIN categories maincat ON b.category_id = maincat.id
-        LEFT JOIN categories subcat ON b.subcategory_id = subcat.id
-        WHERE b.month = %s AND b.year = %s
-        GROUP BY b.category_id, subcat.name, maincat.name
-        ORDER BY total_budgeted DESC;
-        """
+        response = (
+            supabase.table("budgets")
+            .select("category_id, categories(name), subcategory_id, subcategories(name), budgeted_amount")
+            .eq("month", month)
+            .eq("year", year)
+            .execute()
+        )
 
-        response = supabase.rpc("run_sql", {"sql": query, "params": [month, year]}).execute()
+        budgets = response.data
 
-        return jsonify(response.data), 200
+        # Aggregate budgets per category
+        budget_summary = {}
+        for b in budgets:
+            category_name = b.get("subcategories", {}).get("name") or b.get("categories", {}).get("name") or "Unknown"
+            if category_name not in budget_summary:
+                budget_summary[category_name] = 0
+            budget_summary[category_name] += b["budgeted_amount"]
+
+        budget_list = [{"category_name": cat, "total_budgeted": total} for cat, total in budget_summary.items()]
+
+        return jsonify(budget_list), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

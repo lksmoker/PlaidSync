@@ -13,22 +13,27 @@ def get_summary():
         if not month or not year:
             return jsonify({"error": "Month and year are required"}), 400
 
-        query = """
-        SELECT 
-            t.user_category_id,
-            COALESCE(subcat.name, maincat.name) AS category_name,  -- Use subcategory name if it exists
-            SUM(t.amount) AS total_spent
-        FROM transactions t
-        LEFT JOIN categories maincat ON t.user_category_id = maincat.id
-        LEFT JOIN categories subcat ON t.user_subcategory_id = subcat.id
-        WHERE EXTRACT(MONTH FROM t.date) = %s AND EXTRACT(YEAR FROM t.date) = %s
-        GROUP BY t.user_category_id, subcat.name, maincat.name
-        ORDER BY total_spent DESC;
-        """
+        response = (
+            supabase.table("transactions")
+            .select("user_category_id, categories(name), user_subcategory_id, subcategories(name), amount")
+            .eq("EXTRACT(MONTH FROM date)", month)
+            .eq("EXTRACT(YEAR FROM date)", year)
+            .execute()
+        )
 
-        response = supabase.rpc("run_sql", {"sql": query, "params": [month, year]}).execute()
+        transactions = response.data
 
-        return jsonify(response.data), 200
+        # Aggregate spending per category
+        summary = {}
+        for tx in transactions:
+            category_name = tx.get("subcategories", {}).get("name") or tx.get("categories", {}).get("name") or "Unknown"
+            if category_name not in summary:
+                summary[category_name] = 0
+            summary[category_name] += tx["amount"]
+
+        summary_list = [{"category_name": cat, "total_spent": total} for cat, total in summary.items()]
+
+        return jsonify(summary_list), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
