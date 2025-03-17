@@ -5,7 +5,7 @@ budgets_blueprint = Blueprint("budgets", __name__)
 
 @budgets_blueprint.route("/budgets", methods=["GET"])
 def get_budgets():
-    """Fetch budget data for a given month and year."""
+    """Fetch budgeted amounts for a given month and year, including subcategories."""
     try:
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
@@ -13,39 +13,39 @@ def get_budgets():
         if not month or not year:
             return jsonify({"error": "Month and year are required parameters"}), 400
 
+        # ✅ Fetch budget items for the selected month & year
         response = (
-            supabase.table("budgets")
-            .select("id, category_id, budgeted_amount, adjusted_amount, month, year, categories(name, parent_id)")
+            supabase.table("budget_items")
+            .select("amount, category_id, subcategory_id, categories(name, parent_id), subcategories(name)")
             .eq("month", month)
             .eq("year", year)
             .execute()
         )
 
         if response.data:
-            # ✅ Separate into Regular & Reserve budgets
-            regular_budgets = []
-            reserve_budgets = []
+            budget_totals = {}
 
-            for item in response.data:
-                category = item.get("categories", {})
-                parent_id = category.get("parent_id")
+            for budget in response.data:
+                main_category_id = budget.get("category_id")
+                subcategory_id = budget.get("subcategory_id")
 
-                budget_entry = {
-                    "id": item["id"],
-                    "category_id": item["category_id"],
-                    "category_name": category.get("name", "Unknown"),
-                    "budgeted_amount": item["budgeted_amount"],
-                    "adjusted_amount": item["adjusted_amount"],
-                }
+                main_category_name = budget.get("categories", {}).get("name", "Uncategorized")
+                subcategory_name = budget.get("subcategories", {}).get("name")
 
-                if parent_id == 9:  # ✅ Reserve Category
-                    reserve_budgets.append(budget_entry)
-                else:  # ✅ Regular Category
-                    regular_budgets.append(budget_entry)
+                # ✅ Format category key (Main > Sub if applicable)
+                category_key = f"{main_category_name} > {subcategory_name}" if subcategory_name else main_category_name
 
-            return jsonify({"regular_budgets": regular_budgets, "reserve_budgets": reserve_budgets}), 200
+                if category_key not in budget_totals:
+                    budget_totals[category_key] = {
+                        "category_name": category_key,
+                        "total_budgeted": 0
+                    }
 
-        return jsonify({"regular_budgets": [], "reserve_budgets": []}), 200
+                budget_totals[category_key]["total_budgeted"] += budget["amount"]
+
+            return jsonify({"budgets": list(budget_totals.values())}), 200
+
+        return jsonify({"budgets": []}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
