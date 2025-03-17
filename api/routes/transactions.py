@@ -13,7 +13,6 @@ def get_transactions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # ✅ Fetch UNPROCESSED Transactions
 @transactions_blueprint.route("/unprocessed-transactions", methods=["GET"])
 def get_unprocessed_transactions():
@@ -22,14 +21,13 @@ def get_unprocessed_transactions():
         response = (
             supabase.table("transactions")
             .select("*")
-            .or_("user_category_id.is.null,is_ignored.eq.false")
+            .is_("user_category_id", None)  # No category assigned
+            .eq("is_ignored", False)  # Not ignored
             .execute()
         )
-
         return jsonify(response.data), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ✅ Fetch PROCESSED Transactions
 @transactions_blueprint.route("/processed-transactions", methods=["GET"])
@@ -39,16 +37,12 @@ def get_processed_transactions():
         response = (
             supabase.table("transactions")
             .select("*")
-            .or_(
-                "not.is(user_category_id, null),is_ignored.eq.true"  # Either categorized OR ignored
-            )
+            .or_("not.is(user_category_id, null),is_ignored.eq.true")
             .execute()
         )
-
         return jsonify(response.data), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ✅ Add a NEW Transaction
 @transactions_blueprint.route("/transactions", methods=["POST"])
@@ -60,7 +54,6 @@ def add_transaction():
         return jsonify(response.data), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ✅ Update a Transaction
 @transactions_blueprint.route("/transactions/<string:transaction_id>", methods=["PUT"])
@@ -78,7 +71,6 @@ def update_transaction(transaction_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # ✅ Delete a Transaction
 @transactions_blueprint.route("/transactions/<string:transaction_id>", methods=["DELETE"])
 def delete_transaction(transaction_id):
@@ -94,6 +86,7 @@ def delete_transaction(transaction_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ✅ Update Multiple Transactions
 @transactions_blueprint.route("/update-transactions", methods=["POST"])
 def update_transactions():
     """Update multiple transactions at once."""
@@ -120,15 +113,10 @@ def update_transactions():
             update.execute()
 
         return jsonify({"success": True, "updated": len(updates)}), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-from flask import Blueprint, request, jsonify
-from supabase_client import supabase
-
-transactions_blueprint = Blueprint("transactions", __name__)
-
+# ✅ Split Transaction
 @transactions_blueprint.route("/split-transaction", methods=["POST"])
 def split_transaction():
     """Splits a transaction into multiple sub-transactions, preserving account_id."""
@@ -174,13 +162,12 @@ def split_transaction():
 
         supabase.table("transactions").insert(new_transactions).execute()
 
-        # ✅ Step 4: Mark Original Transaction as BOTH `is_ignore = TRUE` and `is_split = TRUE`
+        # ✅ Step 4: Mark Original Transaction as BOTH `is_ignored = TRUE` and `is_split = TRUE`
         supabase.table("transactions").update({
             "is_ignored": True,
             "is_split": True
         }).eq("transaction_id", original_transaction_id).execute()
 
         return jsonify({"message": "Transaction split successfully"}), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
