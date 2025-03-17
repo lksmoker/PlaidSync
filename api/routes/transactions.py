@@ -123,3 +123,64 @@ def update_transactions():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+from flask import Blueprint, request, jsonify
+from supabase_client import supabase
+
+transactions_blueprint = Blueprint("transactions", __name__)
+
+@transactions_blueprint.route("/split-transaction", methods=["POST"])
+def split_transaction():
+    """Splits a transaction into multiple sub-transactions, preserving account_id."""
+    try:
+        data = request.json
+        original_transaction_id = data.get("transaction_id")
+        splits = data.get("splits", [])
+
+        # ✅ Step 1: Fetch the Original Transaction Data
+        original_transaction = (
+            supabase.table("transactions")
+            .select("amount, account_id")  # Fetch account_id
+            .eq("transaction_id", original_transaction_id)
+            .single()
+            .execute()
+        )
+
+        if not original_transaction.data:
+            return jsonify({"error": "Original transaction not found"}), 404
+
+        original_amount = original_transaction.data["amount"]
+        account_id = original_transaction.data["account_id"]
+
+        # ✅ Step 2: Validate Split Amounts
+        split_total = sum(s["amount"] for s in splits)
+        if round(split_total, 2) != round(original_amount, 2):
+            return jsonify({"error": "Split amounts must total the original amount"}), 400
+
+        # ✅ Step 3: Insert New Split Transactions
+        new_transactions = []
+        for i, split in enumerate(splits, start=1):
+            new_transactions.append({
+                "transaction_id": f"{original_transaction_id}-split-{i}",
+                "date": split.get("date"),
+                "name": split.get("name"),
+                "amount": split["amount"],
+                "account_id": account_id,  # ✅ Include account_id
+                "user_category_id": split.get("user_category_id"),
+                "user_subcategory_id": split.get("user_subcategory_id"),
+                "is_ignored": False,  # New splits are not ignored
+                "is_split": False  # These are not split transactions themselves
+            })
+
+        supabase.table("transactions").insert(new_transactions).execute()
+
+        # ✅ Step 4: Mark Original Transaction as BOTH `is_ignore = TRUE` and `is_split = TRUE`
+        supabase.table("transactions").update({
+            "is_ignored": True,
+            "is_split": True
+        }).eq("transaction_id", original_transaction_id).execute()
+
+        return jsonify({"message": "Transaction split successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
