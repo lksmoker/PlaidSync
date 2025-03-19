@@ -39,10 +39,7 @@ def get_unprocessed_transactions():
 def get_processed_transactions():
     """Fetch transactions that have been categorized or ignored."""
     try:
-        if supabase is None:
-            return jsonify({"error": "Supabase client not initialized"}), 500
-
-        transactions = (
+        response = (
             supabase.table("transactions")
             .select("*")
             .or_(
@@ -51,7 +48,7 @@ def get_processed_transactions():
             .execute()
         )
         log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
-        return jsonify(transactions.data), 200
+        return jsonify(response.data), 200
     except Exception as e:
         log_message(f"Error fetching processed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
