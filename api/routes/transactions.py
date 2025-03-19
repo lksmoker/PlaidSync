@@ -42,8 +42,7 @@ def get_processed_transactions():
         response = (
             supabase.table("transactions")
             .select("*")
-            .not_("user_category_id", "is", "null")
-            .or_("is_ignored.eq.true")
+            .or_("not.is.user_category_id.null,is_ignored.eq.true")
             .execute()
         )
         log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
