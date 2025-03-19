@@ -50,15 +50,11 @@ author = 39547853
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd api"
+args = "pkill -f app.py || true"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pkill -f app.py"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python app.py"
+args = "cd api && python app.py"
 
 [auth]
 pageEnabled = false
