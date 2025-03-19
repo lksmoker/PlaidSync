@@ -47,13 +47,18 @@ def get_processed_transactions():
             .execute()
         )
         log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
+        response = (
+            supabase.table("transactions")
+            .select("*")
+            .not_("user_category_id", "is", "null")
+            .or_("is_ignored.eq.true")
+            .execute()
+        )
+        log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
         return jsonify(response.data), 200
     except Exception as e:
         log_message(f"Error fetching processed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
         return jsonify({"error": str(e)}), 500
-        response = (
-            supabase.table("transactions")
-            .select("*")
             .or_("not.is(user_category_id, null),is_ignored.eq.true")
             .execute()
         )
