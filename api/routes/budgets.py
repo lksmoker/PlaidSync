@@ -4,53 +4,56 @@ from utils.logger import log_message
 
 budgets_blueprint = Blueprint("budgets", __name__)
 
-# ✅ Fetch Regular Budgets
+# ✅ Fetch Regular Budgets 
 @budgets_blueprint.route("/budgets/regular", methods=["GET"])
 def get_regular_budgets():
+    """Fetch regular budgets using the /categories/regular endpoint dynamically."""
     try:
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
-        if not month or not year:
-            return jsonify({"error": "Missing month or year parameters"}), 400
+        # Fetch regular category IDs dynamically
+        category_response = supabase.table("categories").select("id").neq("id", 9).execute()
+        regular_category_ids = [cat["id"] for cat in category_response.data]
 
         response = (
             supabase.table("budgets")
             .select("*")
             .eq("month", month)
             .eq("year", year)
-            .eq("type", "regular")  # Filter by regular type
+            .in_("category_id", regular_category_ids)  # Fetch budgets for regular categories
             .execute()
         )
 
-        log_message("Fetched regular budgets successfully", "INFO", "/budgets/regular")
+        log_message(f"Fetched {len(response.data)} regular budgets", "INFO", "/budgets/regular")
         return jsonify(response.data), 200
 
     except Exception as e:
         log_message(f"Error fetching regular budgets: {str(e)}", "ERROR", "/budgets/regular")
         return jsonify({"error": str(e)}), 500
 
-
 # ✅ Fetch Reserve Budgets
 @budgets_blueprint.route("/budgets/reserve", methods=["GET"])
 def get_reserve_budgets():
+    """Fetch reserve budgets using the /categories/reserve endpoint dynamically."""
     try:
         month = request.args.get("month", type=int)
         year = request.args.get("year", type=int)
 
-        if not month or not year:
-            return jsonify({"error": "Missing month or year parameters"}), 400
+        # Fetch reserve category IDs dynamically
+        category_response = supabase.table("categories").select("id").eq("id", 9).execute()
+        reserve_category_ids = [cat["id"] for cat in category_response.data]
 
         response = (
             supabase.table("budgets")
             .select("*")
             .eq("month", month)
             .eq("year", year)
-            .eq("type", "reserve")  # Filter by reserve type
+            .in_("category_id", reserve_category_ids)  # Fetch budgets for reserve categories
             .execute()
         )
 
-        log_message("Fetched reserve budgets successfully", "INFO", "/budgets/reserve")
+        log_message(f"Fetched {len(response.data)} reserve budgets", "INFO", "/budgets/reserve")
         return jsonify(response.data), 200
 
     except Exception as e:
