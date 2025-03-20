@@ -43,7 +43,7 @@ def get_reserve_budgets():
         if not month or not year:
             return jsonify({"error": "Missing month or year parameters"}), 400
 
-        response = supabase.rpc("fetch_reserve_budgets", {"month": month, "year": year}).execute()
+        response = supabase.rpc("fetch_reserve_budgets", {"p_month": month, "p_year": year}).execute()
 
         if response.error:
             log_message(f"Error fetching reserve budgets: {response.error}", "ERROR", "/budgets/reserve")
