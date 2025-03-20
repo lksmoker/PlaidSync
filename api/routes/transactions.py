@@ -35,24 +35,31 @@ def get_unprocessed_transactions():
         return jsonify({"error": str(e)}), 500
 
 # ✅ Fetch PROCESSED Transactions
+
 @transactions_blueprint.route("/processed-transactions", methods=["GET"])
 def get_processed_transactions():
-    """Fetch transactions that have been categorized or ignored."""
+    """Fetch transactions that have been categorized OR ignored."""
     try:
+        # Query transactions that have either been categorized or ignored
         response = (
             supabase.table("transactions")
             .select("*")
-            .or_(
-                "not.is.user_category_id.null,is_ignored.eq.true"
-            )
+            .or_("user_category_id.not.is.null,is_ignored.eq.true")
             .execute()
         )
-        log_message("Fetched processed transactions successfully", "INFO", "Backend", "Transactions Route")
-        return jsonify(response.data), 200
-    except Exception as e:
-        log_message(f"Error fetching processed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
-        return jsonify({"error": str(e)}), 500
 
+        # Check if the response contains data
+        if not response.data:
+            log_message("No processed transactions found.", "INFO", "Backend", "Transactions Route")
+            return jsonify({"message": "No processed transactions found"}), 200
+
+        # Log successful retrieval
+        log_message(f"Fetched {len(response.data)} processed transactions successfully", "INFO", "Backend", "Transactions Route")
+        return jsonify(response.data), 200
+
+    except Exception as e:
+        log_message(f"Exception occurred while fetching processed transactions: {str(e)}", "ERROR", "Backend", "Transactions Route")
+        return jsonify({"error": str(e)}), 500
 
 # ✅ Add a NEW Transaction
 @transactions_blueprint.route("/transactions", methods=["POST"])
