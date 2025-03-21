@@ -33,6 +33,7 @@ def get_regular_budgets():
         return jsonify({"error": str(e)}), 500
 
 # ✅ Fetch Reserve Budgets
+
 @budgets_blueprint.route("/budgets/reserve", methods=["GET"])
 def get_reserve_budgets():
     """Fetch reserve budgets by joining with categories on parent_id = 9."""
@@ -45,16 +46,24 @@ def get_reserve_budgets():
 
         response = supabase.rpc("fetch_reserve_budgets", {"p_month": month, "p_year": year}).execute()
 
-        if response.error:
+        # Check if response contains an error key before accessing it
+        if hasattr(response, "error") and response.error:
             log_message(f"Error fetching reserve budgets: {response.error}", "ERROR", "/budgets/reserve")
             return jsonify({"error": response.error}), 500
 
-        log_message(f"Fetched {len(response.data)} reserve budgets", "INFO", "/budgets/reserve")
-        return jsonify(response.data), 200
+        # Debug log to inspect response format
+        log_message(f"Reserve Budgets Response: {response}", "DEBUG", "/budgets/reserve")
+
+        # Extract the actual data
+        reserve_budgets = response.data if hasattr(response, "data") else []
+
+        log_message(f"Fetched {len(reserve_budgets)} reserve budgets", "INFO", "/budgets/reserve")
+        return jsonify(reserve_budgets), 200
 
     except Exception as e:
         log_message(f"Unexpected error fetching reserve budgets: {str(e)}", "ERROR", "/budgets/reserve")
         return jsonify({"error": str(e)}), 500
+
 # ✅ Get budgets for a given month & year
 @budgets_blueprint.route("/budgets", methods=["GET"])
 def get_budgets():
