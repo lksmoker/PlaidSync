@@ -21,11 +21,7 @@ def get_regular_summary():
         if not month or not year:
             return jsonify({"error": "Missing month or year parameters"}), 400
 
-        response = (
-            supabase.rpc("fetch_summary", {"month": month, "year": year})
-            .filter("type", "eq", "regular")  # Only regular transactions
-            .execute()
-        )
+        response = supabase.rpc("fetch_regular_summary", {"month": month, "year": year}).execute()
 
         log_message("Fetched regular summary successfully", "INFO", "/summary/regular")
         return jsonify(response.data), 200
@@ -46,11 +42,7 @@ def get_reserve_summary():
         if not month or not year:
             return jsonify({"error": "Missing month or year parameters"}), 400
 
-        response = (
-            supabase.rpc("fetch_summary", {"month": month, "year": year})
-            .filter("type", "eq", "reserve")  # Only reserve transactions
-            .execute()
-        )
+        response = supabase.rpc("fetch_reserve_summary", {"month": month, "year": year}).execute()
 
         log_message("Fetched reserve summary successfully", "INFO", "/summary/reserve")
         return jsonify(response.data), 200
