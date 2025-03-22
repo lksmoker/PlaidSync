@@ -64,6 +64,28 @@ def get_reserve_budgets():
         log_message(f"Unexpected error fetching reserve budgets: {str(e)}", "ERROR", "/budgets/reserve")
         return jsonify({"error": str(e)}), 500
 
+@budgets_blueprint.route("/budgets/all", methods=["GET"])
+def get_all_budgets():
+    """Fetch all budgets (regular and reserve) using unified SQL function."""
+    try:
+        month = request.args.get("month", type=int)
+        year = request.args.get("year", type=int)
+
+        if not month or not year:
+            return jsonify({"error": "Missing month or year parameters"}), 400
+
+        response = supabase.rpc("fetch_all_budgets", {"p_month": month, "p_year": year}).execute()
+
+        if hasattr(response, "error") and response.error:
+            log_message(f"Error fetching all budgets: {response.error}", "ERROR", "/budgets/all")
+            return jsonify({"error": str(response.error)}), 500
+
+        return jsonify(response.data), 200
+
+    except Exception as e:
+        log_message(f"Unexpected error fetching all budgets: {str(e)}", "ERROR", "/budgets/all")
+        return jsonify({"error": str(e)}), 500
+
 # ✅ Get budgets for a given month & year
 @budgets_blueprint.route("/budgets", methods=["GET"])
 def get_budgets():
